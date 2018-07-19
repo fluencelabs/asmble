@@ -3,6 +3,9 @@ package asmble.examples.rustregex;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Implementation of {@link RegexLib} based on `java.util.regex`.
+ */
 public class JavaLib implements RegexLib<String> {
     @Override
     public JavaPattern compile(String str) {

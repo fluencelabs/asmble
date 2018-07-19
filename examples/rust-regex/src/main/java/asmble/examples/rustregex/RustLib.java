@@ -5,6 +5,10 @@ import asmble.generated.RustRegex;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Implementation of {@link RegexLib} based on `asmble.generated.RustRegex` that
+ * was composed from Rust code (see lib.rs).
+ */
 public class RustLib implements RegexLib<RustLib.Ptr> {
 
     // 600 pages is enough for our use

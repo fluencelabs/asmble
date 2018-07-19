@@ -2,8 +2,9 @@
 
 extern crate regex;
 
+use std::ptr::NonNull;
 use regex::Regex;
-use std::heap::{Alloc, Heap, Layout};
+use std::alloc::{Alloc, Global, Layout};
 use std::mem;
 use std::str;
 
@@ -37,17 +38,17 @@ pub extern "C" fn match_count(r: *mut Regex, str_ptr: *mut u8, len: usize) -> us
 }
 
 #[no_mangle]
-pub extern "C" fn alloc(size: usize) -> *mut u8 {
+pub extern "C" fn alloc(size: usize) -> NonNull<u8> {
     unsafe {
         let layout = Layout::from_size_align(size, mem::align_of::<u8>()).unwrap();
-        Heap.alloc(layout).unwrap()
+        Global.alloc(layout).unwrap()
     }
 }
 
 #[no_mangle]
-pub extern "C" fn dealloc(ptr: *mut u8, size: usize) {
+pub extern "C" fn dealloc(ptr: NonNull<u8>, size: usize) {
     unsafe  {
         let layout = Layout::from_size_align(size, mem::align_of::<u8>()).unwrap();
-        Heap.dealloc(ptr, layout);
+        Global.dealloc(ptr, layout);
     }
 }
