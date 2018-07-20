@@ -14,6 +14,14 @@ import java.lang.invoke.MethodHandle
 // TODO: modularize
 
 open class FuncBuilder {
+
+    /**
+     * Converts wasm AST [asmble.ast.Node.Func] to Jvm bytecode representation [asmble.compile.jvm.Func].
+     *
+     * @param ctx A Global context for converting.
+     * @param f AST of wasm fn.
+     * @param index Fn index, used for generating fn name
+     */
     fun fromFunc(ctx: ClsContext, f: Node.Func, index: Int): Func {
         ctx.debug { "Building function ${ctx.funcName(index)}" }
         ctx.trace { "Function ast:\n${SExprToStr.fromSExpr(AstToSExpr.fromFunc(f))}" }
@@ -72,8 +80,10 @@ open class FuncBuilder {
     }
 
     fun applyInsn(ctx: FuncContext, fn: Func, i: Insn, index: Int) = when (i) {
+
         is Insn.Node ->
             applyNodeInsn(ctx, fn, i.insn, index)
+
         is Insn.ImportFuncRefNeededOnStack ->
             // Func refs are method handle fields
             fn.addInsns(
@@ -81,6 +91,7 @@ open class FuncBuilder {
                 FieldInsnNode(Opcodes.GETFIELD, ctx.cls.thisRef.asmName,
                     ctx.cls.funcName(i.index), MethodHandle::class.ref.asmDesc)
             ).push(MethodHandle::class.ref)
+
         is Insn.ImportGlobalSetRefNeededOnStack ->
             // Import setters are method handle fields
             fn.addInsns(
@@ -88,8 +99,11 @@ open class FuncBuilder {
                 FieldInsnNode(Opcodes.GETFIELD, ctx.cls.thisRef.asmName,
                     ctx.cls.importGlobalSetterFieldName(i.index), MethodHandle::class.ref.asmDesc)
             ).push(MethodHandle::class.ref)
+
         is Insn.ThisNeededOnStack ->
+            // load a reference onto the stack from a local variable
             fn.addInsns(VarInsnNode(Opcodes.ALOAD, 0)).push(ctx.cls.thisRef)
+        
         is Insn.MemNeededOnStack ->
             putMemoryOnStack(ctx, fn)
     }
@@ -127,18 +141,16 @@ open class FuncBuilder {
             fn.pop().let { (fn, popped) ->
                 fn.addInsns(InsnNode(if (popped.stackSize == 2) Opcodes.POP2 else Opcodes.POP))
             }
-        is Node.Instr.Select ->
-            applySelectInsn(ctx, fn)
-        is Node.Instr.GetLocal ->
-            applyGetLocal(ctx, fn, i.index)
-        is Node.Instr.SetLocal ->
-            applySetLocal(ctx, fn, i.index)
-        is Node.Instr.TeeLocal ->
-            applyTeeLocal(ctx, fn, i.index)
-        is Node.Instr.GetGlobal ->
-            applyGetGlobal(ctx, fn, i.index)
-        is Node.Instr.SetGlobal ->
-            applySetGlobal(ctx, fn, i.index)
+        is Node.Instr.Select -> applySelectInsn(ctx, fn)
+
+        // Variable access
+        is Node.Instr.GetLocal  -> applyGetLocal(ctx, fn, i.index)
+        is Node.Instr.SetLocal  -> applySetLocal(ctx, fn, i.index)
+        is Node.Instr.TeeLocal  -> applyTeeLocal(ctx, fn, i.index)
+        is Node.Instr.GetGlobal -> applyGetGlobal(ctx, fn, i.index)
+        is Node.Instr.SetGlobal -> applySetGlobal(ctx, fn, i.index)
+
+        // Memory operators
         is Node.Instr.I32Load, is Node.Instr.I64Load, is Node.Instr.F32Load, is Node.Instr.F64Load,
         is Node.Instr.I32Load8S, is Node.Instr.I32Load8U, is Node.Instr.I32Load16U, is Node.Instr.I32Load16S,
         is Node.Instr.I64Load8S, is Node.Instr.I64Load8U, is Node.Instr.I64Load16U, is Node.Instr.I64Load16S,
@@ -1185,7 +1197,7 @@ open class FuncBuilder {
         }
 
     fun applyGetLocal(ctx: FuncContext, fn: Func, index: Int) = when (ctx.node.localByIndex(index)) {
-        Node.Type.Value.I32 -> fn.addInsns(VarInsnNode(Opcodes.ILOAD, ctx.actualLocalIndex(index)))
+        Node.Type.Value.I32 -> fn.addInsns(VarInsnNode(Opcodes.ILOAD, ctx.actualLocalIndex(index)))  // @@@ вот тут остановился на трейсе add20
         Node.Type.Value.I64 -> fn.addInsns(VarInsnNode(Opcodes.LLOAD, ctx.actualLocalIndex(index)))
         Node.Type.Value.F32 -> fn.addInsns(VarInsnNode(Opcodes.FLOAD, ctx.actualLocalIndex(index)))
         Node.Type.Value.F64 -> fn.addInsns(VarInsnNode(Opcodes.DLOAD, ctx.actualLocalIndex(index)))

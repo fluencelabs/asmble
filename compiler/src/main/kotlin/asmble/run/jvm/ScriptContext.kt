@@ -19,6 +19,20 @@ import java.lang.invoke.MethodType
 import java.lang.reflect.InvocationTargetException
 import java.util.*
 
+/**
+ * Script context. Contains all the information needed to execute this script.
+ *
+ * @param packageName Package name for this script
+ * @param modules List of all modules to be load for this script
+ * @param registrations Registered modules, key - module name, value - module instance
+ * @param logger Logger for this script
+ * @param adjustContext Fn for tuning context (looks redundant)
+ * @param classLoader ClassLoader for loading all classes for this script
+ * @param exceptionTranslator Converts exceptions to error messages
+ * @param defaultMaxMemPages The maximum number of memory pages when a module doesn't say
+ * @param includeBinaryInCompiledClass Store binary wasm code to compiled class
+ *                                      file as annotation [asmble.annotation.WasmModule]
+ */
 data class ScriptContext(
     val packageName: String,
     val modules: List<Module.Compiled> = emptyList(),

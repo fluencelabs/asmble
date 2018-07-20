@@ -45,15 +45,17 @@ abstract class ScriptCommand<T> : Command<T>() {
     )
 
     fun prepareContext(args: ScriptArgs): ScriptContext {
-        var ctx = ScriptContext(
+        var context = ScriptContext(
             packageName = "asmble.temp" + UUID.randomUUID().toString().replace("-", ""),
             defaultMaxMemPages = args.defaultMaxMemPages
         )
         // Compile everything
-        ctx = args.inFiles.foldIndexed(ctx) { index, ctx, inFile ->
+        context = args.inFiles.foldIndexed(context) { index, ctx, inFile ->
             try {
                 when (inFile.substringAfterLast('.')) {
+                    // if input file is class file
                     "class" -> ctx.classLoader.addClass(File(inFile).readBytes()).let { ctx }
+                    // if input file is wasm file
                     else -> Translate.inToAst(inFile, inFile.substringAfterLast('.')).let { inAst ->
                         val (mod, name) = (inAst.commands.singleOrNull() as? Script.Cmd.Module) ?:
                             error("Input file must only contain a single module")
@@ -70,14 +72,23 @@ abstract class ScriptCommand<T> : Command<T>() {
             } catch (e: Exception) { throw Exception("Failed loading $inFile - ${e.message}", e) }
         }
         // Do registrations
-        ctx = args.registrations.fold(ctx) { ctx, (moduleName, className) ->
+        context = args.registrations.fold(context) { ctx, (moduleName, className) ->
             ctx.withModuleRegistered(moduleName,
                 Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
         }
-        if (args.specTestRegister) ctx = ctx.withHarnessRegistered()
-        return ctx
+        if (args.specTestRegister) context = context.withHarnessRegistered()  // проверить что не так с "Cannot find compatible import for spectest::print"
+        return context
     }
 
+    /**
+     * Common arguments for 'invoke' and 'run' ScriptCommands.
+     *
+     * @param inFiles Files to add to classpath. Can be wasm, wast, or class file
+     * @param registrations Register class name to a module name
+     * @param disableAutoRegister If set, this will not auto-register modules with names
+     * @param specTestRegister If true, registers the spec test harness as 'spectest'
+     * @param defaultMaxMemPages The maximum number of memory pages when a module doesn't say
+     */
     data class ScriptArgs(
         val inFiles: List<String>,
         val registrations: List<Pair<String, String>>,

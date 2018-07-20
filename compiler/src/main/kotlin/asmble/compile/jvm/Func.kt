@@ -4,6 +4,22 @@ import asmble.ast.Node
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.*
 
+/**
+ * Jvm representation of a function.
+ * 
+ * @param name Name of the fn.
+ * @param params List of parameters of the fn.
+ * @param ret Type of the fn returner value.
+ * @param access The value of the access_flags item is a mask of flags used to
+ *                  denote access permissions to and properties of this class or
+ *                  interface [https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.1-200-E.1].
+ * @param insns List of nodes that represents a bytecode instruction.
+ * @param stack ????
+ * @param blockStack ????
+ * @param ifStack ????
+ * @param lastStackIsMemLeftover ????
+ *
+ */
 data class Func(
     val name: String,
     val params: List<TypeRef> = emptyList(),

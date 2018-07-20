@@ -3,6 +3,9 @@ package asmble.cli
 import asmble.compile.jvm.javaIdent
 import asmble.run.jvm.Module
 
+/**
+ * This class provide ''invoke'' WASM code functionality.
+ */
 open class Invoke : ScriptCommand<Invoke.Args>() {
 
     override val name = "invoke"
@@ -34,6 +37,7 @@ open class Invoke : ScriptCommand<Invoke.Args>() {
     ).also { bld.done() }
 
     override fun run(args: Args) {
+        // Compiles wasm to bytecode, do registrations and so on.
         val ctx = prepareContext(args.scriptArgs)
         // Instantiate the module
         val module =
@@ -41,11 +45,11 @@ open class Invoke : ScriptCommand<Invoke.Args>() {
             else ctx.registrations[args.module] as? Module.Instance ?:
                 error("Unable to find module registered as ${args.module}")
         // Just make sure the module is instantiated here...
-        module.instance(ctx)
+        val instance = module.instance(ctx)
         // If an export is provided, call it
         if (args.export != "<start-func>") args.export.javaIdent.let { javaName ->
-            val method = module.cls.declaredMethods.find { it.name == javaName } ?:
-                error("Unable to find export '${args.export}'")
+            // Finds java method(wasm fn) in class(wasm module) by name(declared in <start-func>)
+            val method = module.cls.declaredMethods.find { it.name == javaName } ?: error("Unable to find export '${args.export}'")
             // Map args to params
             require(method.parameterTypes.size == args.args.size) {
                 "Given arg count of ${args.args.size} is invalid for $method"
@@ -59,11 +63,20 @@ open class Invoke : ScriptCommand<Invoke.Args>() {
                     else -> error("Unrecognized type for param ${index + 1}: $paramType")
                 }
             }
-            val result = method.invoke(module.instance(ctx), *params.toTypedArray())
+            val result = method.invoke(instance, *params.toTypedArray())
             if (args.resultToStdout && method.returnType != Void.TYPE) println(result)
         }
     }
 
+    /**
+     * Arguments for 'invoke' command.
+     *
+     * @param scriptArgs Common arguments for 'invoke' and 'run' ScriptCommands.
+     * @param module The module name to run. If it's a JVM class, it must have a no-arg constructor
+     * @param export The specific export function to invoke
+     * @param args Parameter for the export if export is present
+     * @param resultToStdout If true result will print to stout
+     */
     data class Args(
         val scriptArgs: ScriptCommand.ScriptArgs,
         val module: String,

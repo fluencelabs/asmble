@@ -5,6 +5,9 @@ import kotlin.system.exitProcess
 
 val commands = listOf(Compile, Help, Invoke, Link, Run, Translate)
 
+/**
+ * Entry point of command line interface.
+ */
 fun main(args: Array<String>) {
     if (args.isEmpty()) return println(
         """

@@ -30,10 +30,11 @@ open class AstToAsm {
     }
 
     fun addFields(ctx: ClsContext) {
-        // Mem field if present
+        // Mem field if present, adds `private final field memory` to
         if (ctx.hasMemory)
-            ctx.cls.fields.add(FieldNode(Opcodes.ACC_PRIVATE + Opcodes.ACC_FINAL, "memory",
-                ctx.mem.memType.asmDesc, null, null))
+            ctx.cls.fields.add(
+                FieldNode((Opcodes.ACC_PRIVATE + Opcodes.ACC_FINAL), "memory", ctx.mem.memType.asmDesc, null, null)
+            )
         // Table field if present...
         // Private final for now, but likely won't be final in future versions supporting
         // mutable tables, may be not even a table but a list (and final)

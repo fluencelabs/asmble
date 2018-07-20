@@ -3,7 +3,19 @@ package asmble.ast
 import java.util.*
 import kotlin.reflect.KClass
 
+/**
+ * All WebAssembly AST nodes as static inner classes.
+ */
 sealed class Node {
+
+    /**
+     * Wasm module definition.
+     *
+     * The unit of WebAssembly code is the module. A module collects definitions
+     * for types, functions, tables, memories, and globals. In addition, it can
+     * declare imports and exports and provide initialization logic in the form
+     * of data and element segments or a start function.
+     */
     data class Module(
         val types: List<Type.Func> = emptyList(),
         val imports: List<Import> = emptyList(),

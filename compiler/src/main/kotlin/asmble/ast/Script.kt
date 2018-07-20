@@ -1,6 +1,10 @@
 package asmble.ast
 
+/**
+ *  Ast representation of wasm script.
+ */
 data class Script(val commands: List<Cmd>) {
+
     sealed class Cmd {
         data class Module(val module: Node.Module, val name: String?): Cmd()
         data class Register(val string: String, val name: String?): Cmd()
