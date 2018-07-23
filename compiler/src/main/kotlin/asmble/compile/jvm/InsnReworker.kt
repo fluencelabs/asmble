@@ -2,6 +2,9 @@ package asmble.compile.jvm
 
 import asmble.ast.Node
 
+/**
+ * Does some special manipulations with instruction.
+ */
 open class InsnReworker {
 
     fun rework(ctx: ClsContext, func: Node.Func): List<Insn> {
@@ -29,6 +32,7 @@ open class InsnReworker {
         // Note, while walking backwards up the insns to find set/tee, we do skip entire
         // blocks/loops/if+else combined with "end"
         var neededEagerLocalIndices = emptySet<Int>()
+
         fun addEagerSetIfNeeded(getInsnIndex: Int, localIndex: Int) {
             // Within the param range? nothing needed
             if (localIndex < func.type.params.size) return
@@ -71,6 +75,7 @@ open class InsnReworker {
                 (insn is Insn.Node && insn.insn !is Node.Instr.SetLocal && insn.insn !is Node.Instr.TeeLocal)
             if (needsEagerInit) neededEagerLocalIndices += localIndex
         }
+
         insns.forEachIndexed { index, insn ->
             if (insn is Insn.Node && insn.insn is Node.Instr.GetLocal) addEagerSetIfNeeded(index, insn.insn.index)
         }
@@ -86,11 +91,18 @@ open class InsnReworker {
         } + insns
     }
 
+    /**
+     * Puts into instruction list needed instructions for pushing local variables
+     * into the stack and returns list of resulting instructions.
+     *
+     * @param ctx The Execution context
+     * @param insns The original instructions
+     */
     fun injectNeededStackVars(ctx: ClsContext, insns: List<Node.Instr>): List<Insn> {
         ctx.trace { "Calculating places to inject needed stack variables" }
         // How we do this:
         // We run over each insn, and keep a running list of stack
-        // manips. If there is an insn that needs something so far back,
+        // manips. If there is an ins'n that needs something so far back,
         // we calc where it needs to be added and keep a running list of
         // insn inserts. Then at the end we settle up.
         //
@@ -109,6 +121,14 @@ open class InsnReworker {
         // guarantee the value will be in the right order if there are
         // multiple for the same index
         var insnsToInject = emptyMap<Int, List<Insn>>()
+
+        /**
+         * This function inject current instruction in stack.
+         *
+         * @param insn The instruction to inject
+         * @param count Number of step back on the stack that should we do for
+         *               finding injection index.
+         */
         fun injectBeforeLastStackCount(insn: Insn, count: Int) {
             ctx.trace { "Injecting $insn back $count stack values" }
             fun inject(index: Int) {
@@ -148,9 +168,11 @@ open class InsnReworker {
                 }
 
                 countSoFar += amountChanged
-                if (!foundUnconditionalJump) foundUnconditionalJump = insns[insnIndex].let { insn ->
-                    insn is Node.Instr.Br || insn is Node.Instr.BrTable ||
-                        insn is Node.Instr.Unreachable || insn is Node.Instr.Return
+                if (!foundUnconditionalJump) {
+                    foundUnconditionalJump = insns[insnIndex].let { insn ->
+                        insn is Node.Instr.Br || insn is Node.Instr.BrTable ||
+                                insn is Node.Instr.Unreachable || insn is Node.Instr.Return
+                    }
                 }
                 if (countSoFar == count) {
                     ctx.trace { "Found injection point as before insn #$insnIndex" }
@@ -205,13 +227,19 @@ open class InsnReworker {
         }
 
         // Build resulting list
-        return insns.foldIndexed(emptyList<Insn>()) { index, ret, insn ->
+        return insns.foldIndexed(emptyList()) { index, ret, insn ->
             val injections = insnsToInject[index] ?: emptyList()
             ret + injections + Insn.Node(insn)
         }
     }
 
-    fun insnStackDiff(ctx: ClsContext, insn: Node.Instr) = when (insn) {
+    /**
+     * Calculate stack difference after calling instruction current instruction.
+     * Returns the difference from stack cursor position  before instruction and after.
+     * `N = PUSH_OPS - POP_OPS.` '-n' mean that POP operation will be more than PUSH.
+     * If '0' then stack won't changed.
+     */
+    fun insnStackDiff(ctx: ClsContext, insn: Node.Instr): Int = when (insn) {
         is Node.Instr.Unreachable, is Node.Instr.Nop, is Node.Instr.Block,
         is Node.Instr.Loop, is Node.Instr.If, is Node.Instr.Else,
         is Node.Instr.End, is Node.Instr.Br, is Node.Instr.BrIf,
@@ -284,7 +312,8 @@ open class InsnReworker {
         is Node.Instr.F64ReinterpretI64 -> POP_PARAM + PUSH_RESULT
     }
 
-    fun nonAdjacentMemAccesses(insns: List<Insn>) = insns.fold(0 to false) { (count, lastCouldHaveMem), insn ->
+    /** Returns number of memory accesses. */
+    fun nonAdjacentMemAccesses(insns: List<Insn>): Int = insns.fold(0 to false) { (count, lastCouldHaveMem), insn ->
         val inc =
             if (lastCouldHaveMem) 0
             else if (insn == Insn.MemNeededOnStack) 1

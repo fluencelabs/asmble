@@ -177,12 +177,15 @@ sealed class Node {
             interface Const<out T : Number> : Args { val value: T }
         }
 
-        // Control flow
+        // Control instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#control-instructions]
+
         object Unreachable : Instr(), Args.None
         object Nop : Instr(), Args.None
+        
         data class Block(override val type: Type.Value?) : Instr(), Args.Type
         data class Loop(override val type: Type.Value?) : Instr(), Args.Type
         data class If(override val type: Type.Value?) : Instr(), Args.Type
+
         object Else : Instr(), Args.None
         object End : Instr(), Args.None
         data class Br(override val relativeDepth: Int) : Instr(), Args.RelativeDepth
@@ -193,25 +196,27 @@ sealed class Node {
         ) : Instr(), Args.Table
         object Return : Instr()
 
-        // Call operators
         data class Call(override val index: Int) : Instr(), Args.Index
         data class CallIndirect(
             override val index: Int,
             override val reserved: Boolean
         ) : Instr(), Args.ReservedIndex
 
-        // Parametric operators
+        // Parametric instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#parametric-instructions]
+
         object Drop : Instr(), Args.None
         object Select : Instr(), Args.None
 
-        // Variable access
+        // Variable instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#variable-instructions]
+
         data class GetLocal(override val index: Int) : Instr(), Args.Index
         data class SetLocal(override val index: Int) : Instr(), Args.Index
         data class TeeLocal(override val index: Int) : Instr(), Args.Index
         data class GetGlobal(override val index: Int) : Instr(), Args.Index
         data class SetGlobal(override val index: Int) : Instr(), Args.Index
 
-        // Memory operators
+        // Memory instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#memory-instructions]
+
         data class I32Load(override val align: Int, override val offset: Long) : Instr(), Args.AlignOffset
         data class I64Load(override val align: Int, override val offset: Long) : Instr(), Args.AlignOffset
         data class F32Load(override val align: Int, override val offset: Long) : Instr(), Args.AlignOffset
@@ -238,7 +243,9 @@ sealed class Node {
         data class MemorySize(override val reserved: Boolean) : Instr(), Args.Reserved
         data class MemoryGrow(override val reserved: Boolean) : Instr(), Args.Reserved
 
-        // Constants
+        // Numeric instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#numeric-instructions]
+
+        // Constants operators
         data class I32Const(override val value: Int) : Instr(), Args.Const<Int>
         data class I64Const(override val value: Long) : Instr(), Args.Const<Long>
         data class F32Const(override val value: Float) : Instr(), Args.Const<Float>

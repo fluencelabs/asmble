@@ -19,26 +19,26 @@ open class FuncBuilder {
      * Converts wasm AST [asmble.ast.Node.Func] to Jvm bytecode representation [asmble.compile.jvm.Func].
      *
      * @param ctx A Global context for converting.
-     * @param f AST of wasm fn.
+     * @param fn AST of wasm fn.
      * @param index Fn index, used for generating fn name
      */
-    fun fromFunc(ctx: ClsContext, f: Node.Func, index: Int): Func {
+    fun fromFunc(ctx: ClsContext, fn: Node.Func, index: Int): Func {
         ctx.debug { "Building function ${ctx.funcName(index)}" }
-        ctx.trace { "Function ast:\n${SExprToStr.fromSExpr(AstToSExpr.fromFunc(f))}" }
+        ctx.trace { "Function ast:\n${SExprToStr.fromSExpr(AstToSExpr.fromFunc(fn))}" }
         var func = Func(
             access = Opcodes.ACC_PRIVATE,
             name = ctx.funcName(index),
-            params = f.type.params.map(Node.Type.Value::typeRef),
-            ret = f.type.ret?.let(Node.Type.Value::typeRef) ?: Void::class.ref
+            params = fn.type.params.map(Node.Type.Value::typeRef),
+            ret = fn.type.ret?.let(Node.Type.Value::typeRef) ?: Void::class.ref
         )
         // Rework the instructions
-        val reworkedInsns = ctx.reworker.rework(ctx, f)
+        val reworkedInsns = ctx.reworker.rework(ctx, fn)
         // Start the implicit block
-        func = func.pushBlock(Node.Instr.Block(f.type.ret), f.type.ret, f.type.ret)
+        func = func.pushBlock(Node.Instr.Block(fn.type.ret), fn.type.ret, fn.type.ret)
         // Create the context
         val funcCtx = FuncContext(
             cls = ctx,
-            node = f,
+            node = fn,
             insns = reworkedInsns,
             memIsLocalVar =
                 ctx.reworker.nonAdjacentMemAccesses(reworkedInsns) >= ctx.nonAdjacentMemAccessesRequiringLocalVar
@@ -64,11 +64,11 @@ open class FuncBuilder {
         // End the implicit block
         val implicitBlock = func.currentBlock
         func = applyEnd(funcCtx, func)
-        f.type.ret?.typeRef?.also { func = func.popExpecting(it, implicitBlock) }
+        fn.type.ret?.typeRef?.also { func = func.popExpecting(it, implicitBlock) }
 
         // If the last instruction does not terminate, add the expected return
         if (func.insns.isEmpty() || !func.insns.last().isTerminating) {
-            func = func.addInsns(InsnNode(when (f.type.ret) {
+            func = func.addInsns(InsnNode(when (fn.type.ret) {
                 null -> Opcodes.RETURN
                 Node.Type.Value.I32 -> Opcodes.IRETURN
                 Node.Type.Value.I64 -> Opcodes.LRETURN
@@ -109,6 +109,7 @@ open class FuncBuilder {
     }
 
     fun applyNodeInsn(ctx: FuncContext, fn: Func, i: Node.Instr, index: Int) = when (i) {
+
         is Node.Instr.Unreachable ->
             fn.addInsns(UnsupportedOperationException::class.athrow("Unreachable")).markUnreachable()
         is Node.Instr.Nop ->
