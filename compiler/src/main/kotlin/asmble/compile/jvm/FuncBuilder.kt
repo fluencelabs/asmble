@@ -54,9 +54,9 @@ open class FuncBuilder {
         // Add all instructions
         ctx.debug { "Applying insns for function ${ctx.funcName(index)}" }
         // All functions have an implicit block
-        func = funcCtx.insns.foldIndexed(func) { index, func, insn ->
+        func = funcCtx.insns.foldIndexed(func) { idx, f, insn ->
             ctx.debug { "Applying insn $insn" }
-            val ret = applyInsn(funcCtx, func, insn, index)
+            val ret = applyInsn(funcCtx, f, insn, idx)
             ctx.trace { "Resulting stack: ${ret.stack}"}
             ret
         }
@@ -474,18 +474,18 @@ open class FuncBuilder {
 
     fun popUntilStackSize(
         ctx: FuncContext,
-        fn: Func,
+        func: Func,
         block: Func.Block,
         untilStackSize: Int,
         keepLast: Boolean
     ): Func {
         ctx.debug { "For block ${block.insn}, popping until stack size $untilStackSize, keeping last? $keepLast" }
         // Just get the latest, don't actually pop...
-        val type = if (keepLast) fn.pop().second else null
-        return (0 until Math.max(0, fn.stack.size - untilStackSize)).fold(fn) { fn, _ ->
+        val type = if (keepLast) func.pop().second else null
+        return (0 until Math.max(0, func.stack.size - untilStackSize)).fold(func) { fn, _ ->
             // Essentially swap and pop if they want to keep the latest
-            (if (type != null && fn.stack.size > 1) fn.stackSwap(block) else fn).let { fn ->
-                fn.pop(block).let { (fn, poppedType) ->
+            (if (type != null && fn.stack.size > 1) fn.stackSwap(block) else fn).let { f ->
+                f.pop(block).let { (fn, poppedType) ->
                     fn.addInsns(InsnNode(if (poppedType.stackSize == 2) Opcodes.POP2 else Opcodes.POP))
                 }
             }
@@ -1089,10 +1089,12 @@ open class FuncBuilder {
             putMemoryOnStack(ctx, fn).let { fn -> ctx.cls.mem.currentMemory(ctx, fn) }
         }
 
+    /**
+     * Store is a special case where the memory ref is already pre-injected on
+     * the stack before this call. But it can have a memory leftover on the stack
+     * so we pop it if we need to
+     */
     fun applyStoreOp(ctx: FuncContext, fn: Func, insn: Node.Instr.Args.AlignOffset, insnIndex: Int) =
-        // Store is a special case where the memory ref is already pre-injected on
-        // the stack before this call. But it can have a memory leftover on the stack
-        // so we pop it if we need to
         ctx.cls.assertHasMemory().let {
             ctx.cls.mem.storeOp(ctx, fn, insn).let { fn ->
                 // As a special case, if this leaves the mem on the stack
@@ -1198,7 +1200,7 @@ open class FuncBuilder {
         }
 
     fun applyGetLocal(ctx: FuncContext, fn: Func, index: Int) = when (ctx.node.localByIndex(index)) {
-        Node.Type.Value.I32 -> fn.addInsns(VarInsnNode(Opcodes.ILOAD, ctx.actualLocalIndex(index)))  // @@@ вот тут остановился на трейсе add20
+        Node.Type.Value.I32 -> fn.addInsns(VarInsnNode(Opcodes.ILOAD, ctx.actualLocalIndex(index)))
         Node.Type.Value.I64 -> fn.addInsns(VarInsnNode(Opcodes.LLOAD, ctx.actualLocalIndex(index)))
         Node.Type.Value.F32 -> fn.addInsns(VarInsnNode(Opcodes.FLOAD, ctx.actualLocalIndex(index)))
         Node.Type.Value.F64 -> fn.addInsns(VarInsnNode(Opcodes.DLOAD, ctx.actualLocalIndex(index)))
@@ -1281,11 +1283,11 @@ open class FuncBuilder {
         }
     }
 
-    fun applyReturnInsn(ctx: FuncContext, fn: Func): Func {
-        // If the current stakc is unreachable, we consider that our block since it
+    fun applyReturnInsn(ctx: FuncContext, func: Func): Func {
+        // If the current stack is unreachable, we consider that our block since it
         // will pop properly.
-        val block = if (fn.currentBlock.unreachable) fn.currentBlock else fn.blockStack.first()
-        popForBlockEscape(ctx, fn, block).let { fn ->
+        val block = if (func.currentBlock.unreachable) func.currentBlock else func.blockStack.first()
+        popForBlockEscape(ctx, func, block).let { fn ->
             return when (ctx.node.type.ret) {
                 null ->
                     fn.addInsns(InsnNode(Opcodes.RETURN))
@@ -1297,9 +1299,9 @@ open class FuncBuilder {
                     fn.popExpecting(Float::class.ref, block).addInsns(InsnNode(Opcodes.FRETURN))
                 Node.Type.Value.F64 ->
                     fn.popExpecting(Double::class.ref, block).addInsns(InsnNode(Opcodes.DRETURN))
-            }.let { fn ->
-                if (fn.stack.isNotEmpty()) throw CompileErr.UnusedStackOnReturn(fn.stack)
-                fn.markUnreachable()
+            }.let { it ->
+                if (it.stack.isNotEmpty()) throw CompileErr.UnusedStackOnReturn(it.stack)
+                it.markUnreachable()
             }
         }
     }

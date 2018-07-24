@@ -14,11 +14,13 @@ import org.objectweb.asm.tree.*
  *                  denote access permissions to and properties of this class or
  *                  interface [https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.1-200-E.1].
  * @param insns List of nodes that represents a bytecode instruction.
- * @param stack ????
- * @param blockStack ????
- * @param ifStack ????
- * @param lastStackIsMemLeftover ????
- *
+ * @param stack A stack of operand types. Mirror of the operand stack(jvm stack)
+ *              where types of operands instead operands.
+ * @param blockStack List of blocks of code
+ * @param ifStack Contains index of [org.objectweb.asm.tree.JumpInsnNode] that
+ *                  has a null label initially
+ * @param lastStackIsMemLeftover If there is the memory on the stack and we need it
+ *                                in the future, we mark it as leftover and reuse
  */
 data class Func(
     val name: String,
@@ -28,7 +30,6 @@ data class Func(
     val insns: List<AbstractInsnNode> = emptyList(),
     val stack: List<TypeRef> = emptyList(),
     val blockStack: List<Block> = emptyList(),
-    // Contains index of JumpInsnNode that has a null label initially
     val ifStack: List<Int> = emptyList(),
     val lastStackIsMemLeftover: Boolean = false
 ) {
@@ -126,10 +127,11 @@ data class Func(
             }
         }
 
-    fun pushBlock(insn: Node.Instr, labelType: Node.Type.Value?, endType: Node.Type.Value?) =
+    /** Creates new block with specified instruction and pushes it into the blockStack.*/
+    fun pushBlock(insn: Node.Instr, labelType: Node.Type.Value?, endType: Node.Type.Value?): Func =
         pushBlock(insn, listOfNotNull(labelType?.typeRef), listOfNotNull(endType?.typeRef))
 
-    fun pushBlock(insn: Node.Instr, labelTypes: List<TypeRef>, endTypes: List<TypeRef>) =
+    fun pushBlock(insn: Node.Instr, labelTypes: List<TypeRef>, endTypes: List<TypeRef>): Func =
         copy(blockStack = blockStack + Block(insn, insns.size, stack, labelTypes, endTypes))
 
     fun popBlock() = copy(blockStack = blockStack.dropLast(1)) to blockStack.last()
@@ -143,6 +145,22 @@ data class Func(
 
     fun popIf() = copy(ifStack = ifStack.dropLast(1)) to peekIf()
 
+    /**
+     * Representation of code block.
+     *
+     * Blocks are composed of matched pairs of `block ... end` instructions, loops
+     * with matched pairs of `loop ... end` instructions, and ifs with either
+     * `if ... end` or if ... else ... end sequences. For each of these constructs
+     * the instructions in the ellipsis are said to be enclosed in the construct.
+     *
+     * @param isns Start instruction of this block, might be a 'Block', 'Loop'
+     *              or 'If'
+     * @param startIndex Index of start instruction of this block in list of all
+     *                   instructions
+     * @param origStack Current block stack of operand types.
+     * @param labelTypes A type of label for this block
+     * @param endTypes A type of block return value
+     */
     class Block(
         val insn: Node.Instr,
         val startIndex: Int,
