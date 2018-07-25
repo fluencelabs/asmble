@@ -100,6 +100,7 @@ abstract class ByteReader {
         return result
     }
 
+    // todo looks like this InputStream isn't ever closed
     class InputStream(val ins: java.io.InputStream) : ByteReader() {
         private var nextByte: Byte? = null
         private var sawEof = false

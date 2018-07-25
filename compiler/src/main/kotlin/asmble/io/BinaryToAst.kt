@@ -150,26 +150,28 @@ open class BinaryToAst(
 
     fun toMemoryType(b: ByteReader) = Node.Type.Memory(toResizableLimits(b))
 
-    fun toModule(b: ByteReader): Node.Module {
-        if (b.readUInt32() != 0x6d736100L) throw IoErr.InvalidMagicNumber()
-        b.readUInt32().let { if (it != version) throw IoErr.InvalidVersion(it, listOf(version)) }
+    fun toModule(bytes: ByteReader): Node.Module {
+        if (bytes.readUInt32() != 0x6d736100L) throw IoErr.InvalidMagicNumber()
+        bytes.readUInt32().let { if (it != version) throw IoErr.InvalidVersion(it, listOf(version)) }
 
         // Slice up all the sections
         var maxSectionId = 0
         var sections = emptyList<Pair<Int, ByteReader>>()
-        while (!b.isEof) {
-            val sectionId = b.readVarUInt7().toInt()
+        while (!bytes.isEof) {
+            val sectionId = bytes.readVarUInt7().toInt()
             if (sectionId > 11) throw IoErr.InvalidSectionId(sectionId)
             if (sectionId != 0)
                 require(sectionId > maxSectionId) { "Section ID $sectionId came after $maxSectionId" }.
                     also { maxSectionId = sectionId }
-            val sectionLen = b.readVarUInt32AsInt()
-            sections += sectionId to b.read(sectionLen)
+            val sectionLen = bytes.readVarUInt32AsInt()
+            // each 'read' invocation creates new InputStream and don't closes it
+            sections += sectionId to bytes.read(sectionLen)
         }
 
         // Now build the module
         fun <T> readSectionList(sectionId: Int, fn: (ByteReader) -> T) =
             sections.find { it.first == sectionId }?.second?.readList(fn) ?: emptyList()
+
         val types = readSectionList(1, this::toFuncType)
         val funcIndices = readSectionList(3) { it.readVarUInt32AsInt() }
         return Node.Module(

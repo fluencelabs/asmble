@@ -1,6 +1,7 @@
 #![feature(allocator_api)]
 
-use std::heap::{Alloc, Heap, Layout};
+use std::ptr::NonNull;
+use std::alloc::{Alloc, Global, Layout};
 use std::ffi::{CString};
 use std::mem;
 use std::os::raw::c_char;
@@ -30,17 +31,17 @@ pub extern "C" fn prepend_from_rust(ptr: *mut u8, len: usize) -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn alloc(size: usize) -> *mut u8 {
+pub extern "C" fn alloc(size: usize) -> NonNull<u8> {
     unsafe {
         let layout = Layout::from_size_align(size, mem::align_of::<u8>()).unwrap();
-        Heap.alloc(layout).unwrap()
+        Global.alloc(layout).unwrap()
     }
 }
 
 #[no_mangle]
-pub extern "C" fn dealloc(ptr: *mut u8, size: usize) {
+pub extern "C" fn dealloc(ptr: NonNull<u8>, size: usize) {
     unsafe  {
         let layout = Layout::from_size_align(size, mem::align_of::<u8>()).unwrap();
-        Heap.dealloc(ptr, layout);
+        Global.dealloc(ptr, layout);
     }
 }

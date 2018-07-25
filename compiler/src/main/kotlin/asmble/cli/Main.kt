@@ -31,6 +31,7 @@ fun main(args: Array<String>) {
         val globals = Main.globalArgs(argBuild)
         logger = Logger.Print(globals.logLevel)
         command.logger = logger
+        logger.info { "Running the command=${command.name} with args=${argBuild.args}" }
         command.runWithArgs(argBuild)
     } catch (e: Exception) {
         logger.error { "Error ${command?.let { "in command '${it.name}'" } ?: ""}: ${e.message}" }
