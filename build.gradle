@@ -102,28 +102,30 @@ project(':examples') {
     }
 }
 
-project(':examples:rust-regex') {
-    apply plugin: 'application'
-    apply plugin: 'me.champeau.gradle.jmh'
-    ext.wasmCompiledClassName = 'asmble.generated.RustRegex'
-    dependencies {
-        compile files('build/wasm-classes')
-        testCompile 'junit:junit:4.12'
-    }
-    compileJava {
-        dependsOn compileRustWasm
-    }
-    mainClassName = 'asmble.examples.rustregex.Main'
-    test {
-        testLogging.showStandardStreams = true
-        testLogging.events 'PASSED', 'SKIPPED'
-    }
-    jmh {
-        iterations = 5
-        warmupIterations = 5
-        fork = 3
-    }
-}
+// todo temporary disable Rust regex, because some strings in wasm code exceed the size in 65353 bytes.
+
+//project(':examples:rust-regex') {
+//    apply plugin: 'application'
+//    apply plugin: 'me.champeau.gradle.jmh'
+//    ext.wasmCompiledClassName = 'asmble.generated.RustRegex'
+//    dependencies {
+//        compile files('build/wasm-classes')
+//        testCompile 'junit:junit:4.12'
+//    }
+//    compileJava {
+//        dependsOn compileRustWasm
+//    }
+//    mainClassName = 'asmble.examples.rustregex.Main'
+//    test {
+//        testLogging.showStandardStreams = true
+//        testLogging.events 'PASSED', 'SKIPPED'
+//    }
+//    jmh {
+//        iterations = 5
+//        warmupIterations = 5
+//        fork = 3
+//    }
+//}
 
 project(':examples:rust-simple') {
     apply plugin: 'application'

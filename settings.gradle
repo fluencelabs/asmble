@@ -1,6 +1,6 @@
 rootProject.name = 'asmble'
 include 'annotations',
         'compiler',
-        'examples:rust-regex',
+//        'examples:rust-regex',  // todo will be enabled when the problem with string max size will be solved
         'examples:rust-simple',
         'examples:rust-string'
