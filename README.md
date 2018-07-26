@@ -183,9 +183,16 @@ JVM languages.
 
 ### Getting
 
-The latest tag can be added to your build script via [JitPack](https://jitpack.io). For example,
-[here](https://jitpack.io/#cretz/asmble/0.1.0) are instructions for using the 0.1.0 release and
-[here](https://jitpack.io/#cretz/asmble/master-SNAPSHOT) are instructions for the latest master.
+The compiler and annotations are deployed to Maven Central. The compiler is written in Kotlin and can be added as a
+Gradle dependency with:
+
+    compile 'com.github.cretz.asmble:asmble-compiler:0.3.0'
+
+This is only needed to compile of course, the compiled code has no runtime requirement. The compiled code does include
+some annotations (but in Java its ok to have annotations that are not found). If you do want to reflect the annotations,
+the annotation library can be added as a Gradle dependency with:
+
+    compile 'com.github.cretz.asmble:asmble-annotations:0.3.0'
 
 ### Building and Testing
 
@@ -256,15 +263,16 @@ In the WebAssembly MVP a table is just a set of function pointers. This is store
 
 #### Globals
 
-Globals are stored as fields on the class. A non-import global is simply a field, but an import global is a
-`MethodHandle` to the getter (and would be a `MethodHandle` to the setter if mutable globals were supported). Any values
-for the globals are set in the constructor.
+Globals are stored as fields on the class. A non-import global is simply a field that is final if not mutable. An import
+global is a `MethodHandle` to the getter and a `MethodHandle` to the setter if mutable. Any values for the globals are
+set in the constructor.
 
 #### Imports
 
 The constructor accepts all imports as params. Memory is imported via a `ByteBuffer` param, then function
-imports as `MethodHandle` params, then global imports as `MethodHandle` params, then a `MethodHandle` array param for an
-imported table. All of these values are set as fields in the constructor.
+imports as `MethodHandle` params, then global imports as `MethodHandle` params (one for getter and another for setter if
+mutable), then a `MethodHandle` array param for an imported table. All of these values are set as fields in the
+constructor.
 
 #### Exports
 
@@ -363,9 +371,12 @@ stack (e.g. some places where we do a swap).
 Below are some performance and implementation quirks where there is a bit of an impedance mismatch between WebAssembly
 and the JVM:
 
-* WebAssembly has a nice data section for byte arrays whereas the JVM does not. Right now we build a byte array from
-  a bunch of consts at runtime which is multiple operations per byte. This can bloat the class file size, but is quite
-  fast compared to alternatives such as string constants.
+* WebAssembly has a nice data section for byte arrays whereas the JVM does not. Right now we use a single-byte-char
+  string constant (i.e. ISO-8859 charset). This saves class file size, but this means we call `String::getBytes` on
+  init to load bytes from the string constant. Due to the JVM using an unsigned 16-bit int as the string constant
+  length, the maximum byte length is 65536. Since the string constants are stored as UTF-8 constants, they can be up to
+  four bytes a character. Therefore, we populate memory in data chunks no larger than 16300 (nice round number to make
+  sure that even in the worse case of 4 bytes per char in UTF-8 view, we're still under the max).
 * The JVM makes no guarantees about trailing bits being preserved on NaN floating point representations like WebAssembly
   does. This causes some mismatch on WebAssembly tests depending on how the JVM "feels" (I haven't dug into why some
   bit patterns stay and some don't when NaNs are passed through methods).
@@ -416,6 +427,8 @@ languages but is missing the big problem: lack of a standard library. There is n
 WASM compiled from Rust, C, Java, etc if e.g. they all have their own way of handling strings. Someone needs to build a
 definition of an importable set of modules that does all of these things, even if it's in WebIDL. I dunno, maybe the
 effort is already there, I haven't really looked.
+
+There is https://github.com/konsoletyper/teavm
 
 **So I can compile something in C via Emscripten and have it run on the JVM with this?**
 

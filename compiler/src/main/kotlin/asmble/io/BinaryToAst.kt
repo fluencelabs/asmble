@@ -2,11 +2,13 @@ package asmble.io
 
 import asmble.ast.Node
 import asmble.util.*
+import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 
 open class BinaryToAst(
     val version: Long = 1L,
-    val logger: Logger = Logger.Print(Logger.Level.OFF)
+    val logger: Logger = Logger.Print(Logger.Level.OFF),
+    val includeNameSection: Boolean = true
 ) : Logger by logger {
 
     fun toBlockType(b: ByteReader) = b.readVarInt7().toInt().let {
@@ -18,6 +20,23 @@ open class BinaryToAst(
         name = b.readString(),
         payload = b.readBytes()
     )
+
+    fun toNameSection(b: ByteReader) = generateSequence {
+        if (b.isEof) null
+        else b.readVarUInt7().toInt() to b.read(b.readVarUInt32AsInt())
+    }.fold(Node.NameSection(null, emptyMap(), emptyMap())) { sect, (type, b) ->
+        fun <T> indexMap(b: ByteReader, fn: (ByteReader) -> T) =
+            b.readList { it.readVarUInt32AsInt() to fn(it) }.let { pairs ->
+                pairs.toMap().also { require(it.size == pairs.size) { "Malformed names: duplicate indices" } }
+            }
+        fun nameMap(b: ByteReader) = indexMap(b) { it.readString() }
+        when (type) {
+            0 -> sect.copy(moduleName = b.readString())
+            1 -> sect.copy(funcNames = nameMap(b))
+            2 -> sect.copy(localNames = indexMap(b, ::nameMap))
+            else -> error("Malformed names: unrecognized type: $type")
+        }.also { require(b.isEof) }
+    }
 
     fun toData(b: ByteReader) = Node.Data(
         index = b.readVarUInt32AsInt(),
@@ -144,11 +163,14 @@ open class BinaryToAst(
         }
     }
 
-    fun toLocals(b: ByteReader) = b.readVarUInt32AsInt().let { size ->
-        toValueType(b).let { type -> List(size) { type } }
+    fun toLocals(b: ByteReader): List<Node.Type.Value> {
+        val size = try { b.readVarUInt32AsInt() } catch (e: NumberFormatException) { throw IoErr.InvalidLocalSize(e) }
+        return toValueType(b).let { type -> List(size) { type } }
     }
 
     fun toMemoryType(b: ByteReader) = Node.Type.Memory(toResizableLimits(b))
+
+    fun toModule(b: ByteArray) = toModule(ByteReader.InputStream(b.inputStream()))
 
     fun toModule(b: ByteReader): Node.Module {
         if (b.readUInt32() != 0x6d736100L) throw IoErr.InvalidMagicNumber()
@@ -172,6 +194,7 @@ open class BinaryToAst(
             sections.find { it.first == sectionId }?.second?.readList(fn) ?: emptyList()
         val types = readSectionList(1, this::toFuncType)
         val funcIndices = readSectionList(3) { it.readVarUInt32AsInt() }
+        var nameSection: Node.NameSection? = null
         return Node.Module(
             types = types,
             imports = readSectionList(2, this::toImport),
@@ -192,10 +215,18 @@ open class BinaryToAst(
                     val afterSectionId = if (index == 0) 0 else sections[index - 1].let { (prevSectionId, _) ->
                         if (prevSectionId == 0) customSections.last().afterSectionId else prevSectionId
                     }
-                    customSections + toCustomSection(b, afterSectionId)
+                    // Try to parse the name section
+                    val section = toCustomSection(b, afterSectionId).takeIf { section ->
+                        val shouldParseNames = includeNameSection && nameSection == null && section.name == "name"
+                        !shouldParseNames || try {
+                            nameSection = toNameSection(ByteReader.InputStream(section.payload.inputStream()))
+                            false
+                        } catch (e: Exception) { warn { "Failed parsing name section: $e" }; true }
+                    }
+                    if (section == null) customSections else customSections + section
                 }
             }
-        )
+        ).copy(names = nameSection)
     }
 
     fun toResizableLimits(b: ByteReader) = b.readVarUInt1().let {
