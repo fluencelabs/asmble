@@ -67,6 +67,31 @@ project(':examples') {
             compileOnly project(':compiler')
         }
 
+        // Go example helpers
+
+        task goToWasm {
+            doFirst {
+                mkdir 'build'
+                exec {
+                    def goFileName = fileTree(dir: '.', includes: ['*.go']).files.iterator().next()
+                    environment 'GOOS': 'js', 'GOARCH': 'wasm'
+                    commandLine 'go', 'build', '-o', 'build/lib.wasm', goFileName
+                }
+            }
+        }
+
+        task compileGoWasm(type: JavaExec) {
+            dependsOn goToWasm
+            classpath configurations.compileClasspath
+            main = 'asmble.cli.MainKt'
+            doFirst {
+                // args 'help', 'compile'
+                def outFile = 'build/wasm-classes/' + wasmCompiledClassName.replace('.', '/') + '.class'
+                file(outFile).parentFile.mkdirs()
+                args 'compile', 'build/lib.wasm', wasmCompiledClassName, '-out', outFile, '-log', 'debug'
+            }
+        }
+
         // Rust example helpers
 
         ext.rustBuildRelease = true
@@ -116,30 +141,43 @@ project(':examples') {
     }
 }
 
+
+project(':examples:go-simple') {
+    apply plugin: 'application'
+    ext.wasmCompiledClassName = 'asmble.generated.GoSimple'
+    dependencies {
+        compile files('build/wasm-classes')
+    }
+    compileJava {
+        dependsOn compileGoWasm
+    }
+    mainClassName = 'asmble.examples.gosimple.Main'
+}
+
 // todo temporary disable Rust regex, because some strings in wasm code exceed the size in 65353 bytes.
 
-//project(':examples:rust-regex') {
-//    apply plugin: 'application'
-//    apply plugin: 'me.champeau.gradle.jmh'
-//    ext.wasmCompiledClassName = 'asmble.generated.RustRegex'
-//    dependencies {
-//        compile files('build/wasm-classes')
-//        testCompile 'junit:junit:4.12'
-//    }
-//    compileJava {
-//        dependsOn compileRustWasm
-//    }
-//    mainClassName = 'asmble.examples.rustregex.Main'
-//    test {
-//        testLogging.showStandardStreams = true
-//        testLogging.events 'PASSED', 'SKIPPED'
-//    }
-//    jmh {
-//        iterations = 5
-//        warmupIterations = 5
-//        fork = 3
-//    }
-//}
+// project(':examples:rust-regex') {
+//     apply plugin: 'application'
+//     apply plugin: 'me.champeau.gradle.jmh'
+//     ext.wasmCompiledClassName = 'asmble.generated.RustRegex'
+//     dependencies {
+//         compile files('build/wasm-classes')
+//         testCompile 'junit:junit:4.12'
+//     }
+//     compileJava {
+//         dependsOn compileRustWasm
+//     }
+//     mainClassName = 'asmble.examples.rustregex.Main'
+//     test {
+//         testLogging.showStandardStreams = true
+//         testLogging.events 'PASSED', 'SKIPPED'
+//     }
+//     jmh {
+//         iterations = 5
+//         warmupIterations = 5
+//         fork = 3
+//     }
+// }
 
 project(':examples:rust-simple') {
     apply plugin: 'application'
