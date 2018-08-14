@@ -20,7 +20,7 @@ buildscript {
 allprojects {
     apply plugin: 'java'
     group 'com.github.cretz.asmble'
-    version '0.4.0-SNAPSHOT'
+    version '0.4.0-fl'
 
     repositories {
         mavenCentral()
@@ -205,7 +205,7 @@ project(':examples:rust-string') {
 
 def publishSettings(project, projectName, projectDescription, includeJavadoc) {
     project.with {
-        if (!project.hasProperty('ossrhUsername')) return
+        if (!bintrayUser || !bintrayKey) return
         apply plugin: 'maven'
         apply plugin: 'signing'
 
@@ -232,29 +232,26 @@ def publishSettings(project, projectName, projectDescription, includeJavadoc) {
             archives packageSources, packageJavadoc
         }
 
-        signing {
-            sign configurations.archives
-        }
-
         uploadArchives {
             repositories {
                 mavenDeployer {
-                    beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-                    repository(url: 'https://oss.sonatype.org/service/local/staging/deploy/maven2/') {
-                        authentication(userName: ossrhUsername, password: ossrhPassword)
+
+                    println(bintrayKey)
+                    repository(url: 'https://dl.bintray.com/fluencelabs/releases/') {
+                        authentication(userName: bintrayUser, password: bintrayKey)
                     }
-                    snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/') {
-                        authentication(userName: ossrhUsername, password: ossrhPassword)
-                    }
+//                    snapshotRepository(url: 'https://dl.bintray.com/fluencelabs/snapshots/') {
+//                        authentication(userName: bintrayUser, password: bintrayKey)
+//                    }
                     pom.project {
                         name projectName
                         packaging 'jar'
                         description projectDescription
-                        url 'https://github.com/cretz/asmble'
+                        url 'https://github.com/fluencelabs/asmble'
                         scm {
-                            connection 'scm:git:git@github.com:cretz/asmble.git'
-                            developerConnection 'scm:git:git@github.com:cretz/asmble.git'
-                            url 'git@github.com:cretz/asmble.git'
+                            connection 'scm:git:git@github.com:fluencelabs/asmble.git'
+                            developerConnection 'scm:git:git@github.com:fluencelabs/asmble.git'
+                            url 'git@github.com:fluencelabs/asmble.git'
                         }
                         licenses {
                             license {
@@ -262,11 +259,11 @@ def publishSettings(project, projectName, projectDescription, includeJavadoc) {
                                 url 'https://opensource.org/licenses/MIT'
                             }
                         }
-                        developers {
+                        developers {                               
                             developer {
-                                id 'cretz'
-                                name 'Chad Retz'
-                                url 'https://github.com/cretz'
+                                id 'fluencelabs'
+                                name 'Fluencelabs'
+                                url 'https://github.com/fluencelabs'
                             }
                         }
                     }
