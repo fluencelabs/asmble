@@ -35,7 +35,7 @@ project(':annotations') {
         options.addStringOption 'Xdoclint:all', '-Xdoclint:-missing'
     }
 
-    publishSettings(project, 'asmble-annotations', 'Asmble WASM Annotations', true)
+    publishSettings(project, 'asmble-annotations', 'Asmble WASM Annotations')
 }
 
 project(':compiler') {
@@ -59,7 +59,7 @@ project(':compiler') {
         testCompile "org.ow2.asm:asm-debug-all:$asm_version"
     }
 
-    publishSettings(project, 'asmble-compiler', 'Asmble WASM Compiler', false)
+    publishSettings(project, 'asmble-compiler', 'Asmble WASM Compiler')
 }
 
 project(':examples') {
