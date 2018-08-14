@@ -14,6 +14,7 @@ buildscript {
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.5'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
     }
 }
 
@@ -203,72 +204,56 @@ project(':examples:rust-string') {
     mainClassName = 'asmble.examples.ruststring.Main'
 }
 
-def publishSettings(project, projectName, projectDescription, includeJavadoc) {
+def publishSettings(project, projectName, projectDescription) {
+
     project.with {
-        if (!bintrayUser || !bintrayKey) return
+        apply plugin: 'com.jfrog.bintray'
+        apply plugin: 'maven-publish'
         apply plugin: 'maven'
-        apply plugin: 'signing'
 
-        archivesBaseName = projectName
 
-        task packageSources(type: Jar) {
+        task sourcesJar(type: Jar) {
+            from sourceSets.main.allJava
             classifier = 'sources'
-            from sourceSets.main.allSource
         }
 
-        if (includeJavadoc) {
-            task packageJavadoc(type: Jar, dependsOn: 'javadoc') {
-                from javadoc.destinationDir
-                classifier = 'javadoc'
-            }
-        } else {
-            task packageJavadoc(type: Jar) {
-                // Empty to satisfy Sonatype's javadoc.jar requirement
-                classifier 'javadoc'
-            }
-        }
-
-        artifacts {
-            archives packageSources, packageJavadoc
-        }
-
-        uploadArchives {
-            repositories {
-                mavenDeployer {
-
-                    println(bintrayKey)
-                    repository(url: 'https://dl.bintray.com/fluencelabs/releases/') {
-                        authentication(userName: bintrayUser, password: bintrayKey)
-                    }
-//                    snapshotRepository(url: 'https://dl.bintray.com/fluencelabs/snapshots/') {
-//                        authentication(userName: bintrayUser, password: bintrayKey)
-//                    }
-                    pom.project {
-                        name projectName
-                        packaging 'jar'
-                        description projectDescription
-                        url 'https://github.com/fluencelabs/asmble'
-                        scm {
-                            connection 'scm:git:git@github.com:fluencelabs/asmble.git'
-                            developerConnection 'scm:git:git@github.com:fluencelabs/asmble.git'
-                            url 'git@github.com:fluencelabs/asmble.git'
-                        }
-                        licenses {
-                            license {
-                                name 'MIT License'
-                                url 'https://opensource.org/licenses/MIT'
-                            }
-                        }
-                        developers {                               
-                            developer {
-                                id 'fluencelabs'
-                                name 'Fluencelabs'
-                                url 'https://github.com/fluencelabs'
-                            }
-                        }
-                    }
+        publishing {
+            publications {
+                MyPublication(MavenPublication) {
+                    from components.java
+                    groupId group
+                    artifactId projectName
+                    artifact sourcesJar
+                    version version
                 }
             }
         }
+
+        bintray {
+
+            user = bintrayUser
+            key =  bintrayKey
+            publications = ['MyPublication']
+            //[Default: false] Whether to override version artifacts already published
+            override = false
+            //[Default: false] Whether version should be auto published after an upload
+            publish = true
+            
+            pkg {
+                repo = 'releases'
+                name = projectName
+                userOrg =  'fluencelabs'
+                licenses = ['MIT']
+                vcsUrl = 'https://github.com/fluencelabs/asmble'
+                version {
+                    name = project.version
+                    desc = projectDescription
+                    released  = new Date()
+                    vcsTag = project.version
+                }
+            }
+            
+        }
     }
+
 }
