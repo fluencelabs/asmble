@@ -56,7 +56,7 @@ abstract class ScriptCommand<T> : Command<T>() {
                     // if input file is class file
                     "class" -> ctx.classLoader.addClass(File(inFile).readBytes()).let { ctx }
                     // if input file is wasm file
-                    else -> Translate.inToAst(inFile, inFile.substringAfterLast('.')).let { inAst ->
+                    else -> Translate.also { it.logger = logger }.inToAst(inFile, inFile.substringAfterLast('.')).let { inAst ->
                         val (mod, name) = (inAst.commands.singleOrNull() as? Script.Cmd.Module) ?:
                             error("Input file must only contain a single module")
                         val className = name?.javaIdent?.capitalize() ?:
@@ -69,7 +69,9 @@ abstract class ScriptCommand<T> : Command<T>() {
                         }
                     }
                 }
-            } catch (e: Exception) { throw Exception("Failed loading $inFile - ${e.message}", e) }
+            } catch (e: Exception) {
+                throw Exception("Failed loading $inFile - ${e.message}", e)
+            }
         }
         // Do registrations
         context = args.registrations.fold(context) { ctx, (moduleName, className) ->
