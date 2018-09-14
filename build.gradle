@@ -231,6 +231,10 @@ def publishSettings(project, projectName, projectDescription) {
 
         bintray {
 
+            if(!hasProperty("bintrayUser") || !hasProperty("bintrayKey")) {
+                return
+            }
+
             user = bintrayUser
             key =  bintrayKey
             publications = ['MyPublication']
