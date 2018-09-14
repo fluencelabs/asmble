@@ -184,7 +184,7 @@ sealed class Node {
             interface Const<out T : Number> : Args { val value: T }
         }
 
-        // Control instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#control-instructions]
+        // Control instructions [https://www.w3.org/TR/wasm-core-1/#control-instructions]
 
         object Unreachable : Instr(), Args.None
         object Nop : Instr(), Args.None
@@ -209,12 +209,12 @@ sealed class Node {
             override val reserved: Boolean
         ) : Instr(), Args.ReservedIndex
 
-        // Parametric instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#parametric-instructions]
+        // Parametric instructions [https://www.w3.org/TR/wasm-core-1/#parametric-instructions]
 
         object Drop : Instr(), Args.None
         object Select : Instr(), Args.None
 
-        // Variable instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#variable-instructions]
+        // Variable instructions [https://www.w3.org/TR/wasm-core-1/#variable-instructions]
 
         data class GetLocal(override val index: Int) : Instr(), Args.Index
         data class SetLocal(override val index: Int) : Instr(), Args.Index
@@ -222,7 +222,7 @@ sealed class Node {
         data class GetGlobal(override val index: Int) : Instr(), Args.Index
         data class SetGlobal(override val index: Int) : Instr(), Args.Index
 
-        // Memory instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#memory-instructions]
+        // Memory instructions [https://www.w3.org/TR/wasm-core-1/#memory-instructions]
 
         data class I32Load(override val align: Int, override val offset: Long) : Instr(), Args.AlignOffset
         data class I64Load(override val align: Int, override val offset: Long) : Instr(), Args.AlignOffset
@@ -250,7 +250,7 @@ sealed class Node {
         data class MemorySize(override val reserved: Boolean) : Instr(), Args.Reserved
         data class MemoryGrow(override val reserved: Boolean) : Instr(), Args.Reserved
 
-        // Numeric instructions [https://www.w3.org/TR/2018/WD-wasm-core-1-20180215/#numeric-instructions]
+        // Numeric instructions [https://www.w3.org/TR/wasm-core-1/#numeric-instructions]
 
         // Constants operators
         data class I32Const(override val value: Int) : Instr(), Args.Const<Int>
