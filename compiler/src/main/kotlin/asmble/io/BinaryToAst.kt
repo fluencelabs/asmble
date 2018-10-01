@@ -2,12 +2,11 @@ package asmble.io
 
 import asmble.ast.Node
 import asmble.util.*
-import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 
 open class BinaryToAst(
     val version: Long = 1L,
-    val logger: Logger = Logger.Print(Logger.Level.OFF),
+    val logger: Logger = Logger.Print(Logger.Level.WARN),
     val includeNameSection: Boolean = true
 ) : Logger by logger {
 
