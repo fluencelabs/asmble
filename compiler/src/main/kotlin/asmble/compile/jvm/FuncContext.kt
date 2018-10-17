@@ -4,13 +4,13 @@ import asmble.ast.Node
 import asmble.util.Logger
 
 /**
- * Jvm context of execution a function.
+ * Jvm context of the function execution.
  *
- * @param cls Class execution context
+ * @param cls class execution context
  * @param node Ast of this function
- * @param insns A list of instructions
- * @param memIsLocalVar If true then function use only local variables and don't load
- *                       and store from memory.
+ * @param insns instructions list
+ * @param memIsLocalVar true if function uses only local variables and doesn't load
+ *                       or store to/from memory.
  */
 data class FuncContext(
     val cls: ClsContext,
