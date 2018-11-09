@@ -56,16 +56,20 @@ abstract class ScriptCommand<T> : Command<T>() {
                     // if input file is class file
                     "class" -> ctx.classLoader.addClass(File(inFile).readBytes()).let { ctx }
                     // if input file is wasm file
-                    else -> Translate.also { it.logger = logger }.inToAst(inFile, inFile.substringAfterLast('.')).let { inAst ->
-                        val (mod, name) = (inAst.commands.singleOrNull() as? Script.Cmd.Module) ?:
+                    else -> {
+                        val translateCmd = Translate
+                        translateCmd.logger = this.logger
+                        translateCmd.inToAst(inFile, inFile.substringAfterLast('.')).let { inAst ->
+                            val (mod, name) = (inAst.commands.singleOrNull() as? Script.Cmd.Module) ?:
                             error("Input file must only contain a single module")
-                        val className = name?.javaIdent?.capitalize() ?:
+                            val className = name?.javaIdent?.capitalize() ?:
                             "Temp" + UUID.randomUUID().toString().replace("-", "")
-                        ctx.withCompiledModule(mod, className, name).let { ctx ->
-                            if (name == null && index != args.inFiles.size - 1)
-                                logger.warn { "File '$inFile' not last and has no name so will be unused" }
-                            if (name == null || args.disableAutoRegister) ctx
-                            else ctx.runCommand(Script.Cmd.Register(name, null))
+                            ctx.withCompiledModule(mod, className, name).let { ctx ->
+                                if (name == null && index != args.inFiles.size - 1)
+                                    logger.warn { "File '$inFile' not last and has no name so will be unused" }
+                                if (name == null || args.disableAutoRegister) ctx
+                                else ctx.runCommand(Script.Cmd.Register(name, null))
+                            }
                         }
                     }
                 }
