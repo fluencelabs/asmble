@@ -21,7 +21,11 @@ buildscript {
 allprojects {
     apply plugin: 'java'
     group 'com.github.cretz.asmble'
-    version '0.4.0-fl'
+    version '0.4.1-fl'
+
+    // skips building and running for the specified examples
+    ext.skipExamples = ['go-simple', 'rust-regex']
+    // todo disabling Rust regex is temporary because some strings in wasm code exceed the size in 65353 bytes.
 
     repositories {
         mavenCentral()
@@ -144,6 +148,10 @@ project(':examples') {
 
 
 project(':examples:go-simple') {
+    if (project.name in skipExamples) {
+        println("[Note!] Building and runnig for ${project.name} was skipped")
+        return
+    }
     apply plugin: 'application'
     ext.wasmCompiledClassName = 'asmble.generated.GoSimple'
     dependencies {
@@ -155,32 +163,42 @@ project(':examples:go-simple') {
     mainClassName = 'asmble.examples.gosimple.Main'
 }
 
-// todo temporary disable Rust regex, because some strings in wasm code exceed the size in 65353 bytes.
+ project(':examples:rust-regex') {
+     apply plugin: 'application'
+     apply plugin: 'me.champeau.gradle.jmh'
+     ext.wasmCompiledClassName = 'asmble.generated.RustRegex'
+     dependencies {
+         compile files('build/wasm-classes')
+         testCompile 'junit:junit:4.12'
+     }
+     compileJava {
+         dependsOn compileRustWasm
+     }
+     mainClassName = 'asmble.examples.rustregex.Main'
 
-// project(':examples:rust-regex') {
-//     apply plugin: 'application'
-//     apply plugin: 'me.champeau.gradle.jmh'
-//     ext.wasmCompiledClassName = 'asmble.generated.RustRegex'
-//     dependencies {
-//         compile files('build/wasm-classes')
-//         testCompile 'junit:junit:4.12'
-//     }
-//     compileJava {
-//         dependsOn compileRustWasm
-//     }
-//     mainClassName = 'asmble.examples.rustregex.Main'
-//     test {
-//         testLogging.showStandardStreams = true
-//         testLogging.events 'PASSED', 'SKIPPED'
-//     }
-//     jmh {
-//         iterations = 5
-//         warmupIterations = 5
-//         fork = 3
-//     }
-// }
+     // the building will run but no test and benchmarks will run
+     if (project.name in skipExamples) {
+         println("[Note!] Building and runnig for ${project.name} was skipped")
+         test.onlyIf { false } // explicit skipping tests
+         return
+     }
+     
+     test {
+         testLogging.showStandardStreams = true
+         testLogging.events 'PASSED', 'SKIPPED'
+     }
+     jmh {
+         iterations = 5
+         warmupIterations = 5
+         fork = 3
+     }
+ }
 
 project(':examples:rust-simple') {
+    if (project.name in skipExamples) {
+        println("[Note!] Building and runnig for ${project.name} was skipped")
+        return
+    }
     apply plugin: 'application'
     ext.wasmCompiledClassName = 'asmble.generated.RustSimple'
     dependencies {
@@ -193,6 +211,10 @@ project(':examples:rust-simple') {
 }
 
 project(':examples:rust-string') {
+    if (project.name in skipExamples) {
+        println("[Note!] Building and runnig for ${project.name} was skipped")
+        return
+    }
     apply plugin: 'application'
     ext.wasmCompiledClassName = 'asmble.generated.RustString'
     dependencies {
