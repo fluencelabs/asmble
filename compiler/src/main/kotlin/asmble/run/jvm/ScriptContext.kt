@@ -45,6 +45,7 @@ data class ScriptContext(
     val defaultMaxMemPages: Int = 1,
     val includeBinaryInCompiledClass: Boolean = false
 ) : Logger by logger {
+
     fun withHarnessRegistered(out: PrintWriter = PrintWriter(System.out, true)) =
         withModuleRegistered("spectest", Module.Native(TestHarness(out)))
 

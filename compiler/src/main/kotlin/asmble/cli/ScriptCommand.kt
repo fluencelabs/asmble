@@ -2,9 +2,11 @@ package asmble.cli
 
 import asmble.ast.Script
 import asmble.compile.jvm.javaIdent
+import asmble.run.jvm.LoggerModule
 import asmble.run.jvm.Module
 import asmble.run.jvm.ScriptContext
 import java.io.File
+import java.io.PrintWriter
 import java.util.*
 
 abstract class ScriptCommand<T> : Command<T>() {
@@ -41,6 +43,13 @@ abstract class ScriptCommand<T> : Command<T>() {
             desc = "The maximum number of memory pages when a module doesn't say.",
             default = "5",
             lowPriority = true
+        ).toInt(),
+        loggerMemPages = bld.arg(
+                name = "loggerMemPages",
+                opt = "loggermempages",
+                desc = "The maximum number of memory pages of the logger module.",
+                default = "0",
+                lowPriority = true
         ).toInt()
     )
 
@@ -82,7 +91,16 @@ abstract class ScriptCommand<T> : Command<T>() {
             ctx.withModuleRegistered(moduleName,
                 Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
         }
-        if (args.specTestRegister) context = context.withHarnessRegistered()  // проверить что не так с "Cannot find compatible import for spectest::print"
+        if (args.specTestRegister) context = context.withHarnessRegistered()
+
+        if (args.loggerMemPages > 0) {
+            // creates additional Wasm module with logger functionality
+            context =
+                context.withModuleRegistered(
+                    "logger",
+                    Module.Native(LoggerModule(args.loggerMemPages, PrintWriter(System.out)))
+                )
+        }
         return context
     }
 
@@ -94,12 +112,14 @@ abstract class ScriptCommand<T> : Command<T>() {
      * @param disableAutoRegister If set, this will not auto-register modules with names
      * @param specTestRegister If true, registers the spec test harness as 'spectest'
      * @param defaultMaxMemPages The maximum number of memory pages when a module doesn't say
+     * @param loggerMemPages The maximum number of memory pages of the logger module.
      */
     data class ScriptArgs(
         val inFiles: List<String>,
         val registrations: List<Pair<String, String>>,
         val disableAutoRegister: Boolean,
         val specTestRegister: Boolean,
-        val defaultMaxMemPages: Int
+        val defaultMaxMemPages: Int,
+        val loggerMemPages: Int
     )
 }
