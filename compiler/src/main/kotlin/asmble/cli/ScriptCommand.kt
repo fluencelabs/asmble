@@ -19,6 +19,13 @@ abstract class ScriptCommand<T> : Command<T>() {
                 "Named wasm/wast modules here are automatically registered unless -noreg is set.",
             default = emptyList()
         ),
+        inModulesName = bld.args(
+                name = "inModulesName",
+                opt = "mn",
+                desc = "Module names that should be used instead of module names in class files.",
+                default = emptyList(),
+                lowPriority = true
+        ),
         registrations = bld.args(
             name = "registration",
             opt = "reg",
@@ -58,26 +65,34 @@ abstract class ScriptCommand<T> : Command<T>() {
             packageName = "asmble.temp" + UUID.randomUUID().toString().replace("-", ""),
             defaultMaxMemPages = args.defaultMaxMemPages
         )
-        // Compile everything
-        context = args.inFiles.foldIndexed(context) { index, ctx, inFile ->
+
+        context = args.inFiles.foldIndexed(context) { index, context, inFile ->
             try {
                 when (inFile.substringAfterLast('.')) {
                     // if input file is class file
-                    "class" -> ctx.classLoader.addClass(File(inFile).readBytes()).let { ctx }
-                    // if input file is wasm file
+                    "class" -> context.classLoader.addClass(File(inFile).readBytes()).let { context }
+                    // if input file is wasm or wast file
                     else -> {
                         val translateCmd = Translate
                         translateCmd.logger = this.logger
                         translateCmd.inToAst(inFile, inFile.substringAfterLast('.')).let { inAst ->
-                            val (mod, name) = (inAst.commands.singleOrNull() as? Script.Cmd.Module) ?:
+                            val (mod, rawName) = (inAst.commands.singleOrNull() as? Script.Cmd.Module) ?:
                             error("Input file must only contain a single module")
+
+                            // set name to inModulesName if it exists and non empty
+                            val name = if (args.inModulesName != null && index < args.inModulesName.size ) {
+                                args.inModulesName[index] ?: rawName
+                            } else {
+                                rawName
+                            }
+
                             val className = name?.javaIdent?.capitalize() ?:
-                            "Temp" + UUID.randomUUID().toString().replace("-", "")
-                            ctx.withCompiledModule(mod, className, name).let { ctx ->
+                                "Temp" + UUID.randomUUID().toString().replace("-", "")
+                            context.withCompiledModule(mod, className, name).let { context ->
                                 if (name == null && index != args.inFiles.size - 1)
                                     logger.warn { "File '$inFile' not last and has no name so will be unused" }
-                                if (name == null || args.disableAutoRegister) ctx
-                                else ctx.runCommand(Script.Cmd.Register(name, null))
+                                if (name == null || args.disableAutoRegister) context
+                                else context.runCommand(Script.Cmd.Register(name, null))
                             }
                         }
                     }
@@ -116,6 +131,7 @@ abstract class ScriptCommand<T> : Command<T>() {
      */
     data class ScriptArgs(
         val inFiles: List<String>,
+        val inModulesName: List<String?>?,
         val registrations: List<Pair<String, String>>,
         val disableAutoRegister: Boolean,
         val specTestRegister: Boolean,
