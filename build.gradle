@@ -14,7 +14,7 @@ buildscript {
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.5'
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.3'
     }
 }
 
@@ -309,12 +309,12 @@ def publishSettings(project, projectName, projectDescription) {
         }
 
         bintray {
-            if(!hasProperty("bintrayUser") || !hasProperty("bintrayKey")) {
+            /*if(!hasProperty("bintrayUser") || !hasProperty("bintrayKey")) {
                 return
-            }
+            }*/
 
-            user = bintrayUser
-            key =  bintrayKey
+            user = "diemust"
+            key =  "d29cb47997b76560888f83add0aa1db5e58d57d4"
             publications = ['MyPublication']
             //[Default: false] Whether to override version artifacts already published
             override = false

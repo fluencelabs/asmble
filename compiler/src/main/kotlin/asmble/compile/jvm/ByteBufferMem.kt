@@ -4,32 +4,30 @@ import asmble.ast.Node
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.*
-import java.nio.Buffer
-import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 
-open class ByteBufferMem(val direct: Boolean = true) : Mem {
-    override val memType = ByteBuffer::class.ref
+open class ByteBufferMem(val initializator: MemoryBufferInitializator = MemoryByteBufferInitializator(true)) : Mem {
+    override val memType: TypeRef = initializator.memTypeRef
 
-    override fun limitAndCapacity(instance: Any) =
-        if (instance !is ByteBuffer) error("Unrecognized memory instance: $instance")
+    override fun limitAndCapacity(instance: Any): Pair<Int, Int> =
+        if (instance !is MemoryBuffer) error("Unrecognized memory instance: $instance")
         else instance.limit() to instance.capacity()
 
     override fun create(func: Func) = func.popExpecting(Int::class.ref).addInsns(
-        (if (direct) ByteBuffer::allocateDirect else ByteBuffer::allocate).invokeStatic()
+        (initializator::init).invokeStatic()
     ).push(memType)
 
     override fun init(func: Func, initial: Int) = func.popExpecting(memType).addInsns(
         // Set the limit to initial
         (initial * Mem.PAGE_SIZE).const,
-        forceFnType<ByteBuffer.(Int) -> Buffer>(ByteBuffer::limit).invokeVirtual(),
-        TypeInsnNode(Opcodes.CHECKCAST, ByteBuffer::class.ref.asmName),
+        forceFnType<MemoryBuffer.(Int) -> MemoryBuffer>(MemoryBuffer::limit).invokeVirtual(),
+        TypeInsnNode(Opcodes.CHECKCAST, MemoryBuffer::class.ref.asmName),
         // Set it to use little endian
         ByteOrder::LITTLE_ENDIAN.getStatic(),
-        forceFnType<ByteBuffer.(ByteOrder) -> ByteBuffer>(ByteBuffer::order).invokeVirtual()
-    ).push(ByteBuffer::class.ref)
+        forceFnType<MemoryBuffer.(ByteOrder) -> MemoryBuffer>(MemoryBuffer::order).invokeVirtual()
+    ).push(MemoryBuffer::class.ref)
 
     override fun data(func: Func, bytes: ByteArray, buildOffset: (Func) -> Func) =
         // Sadly there is no absolute bulk put, so we need to fake one. Ref:
@@ -42,10 +40,10 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
         // where we could call put directly, but it too is negligible for now.
         // Note, with this approach, the mem not be left on the stack for future data() calls which is fine.
         func.popExpecting(memType).
-            addInsns(ByteBuffer::duplicate.invokeVirtual()).
+            addInsns(MemoryBuffer::duplicate.invokeVirtual()).
             let(buildOffset).popExpecting(Int::class.ref).
             addInsns(
-                forceFnType<ByteBuffer.(Int) -> Buffer>(ByteBuffer::position).invokeVirtual(),
+                forceFnType<MemoryBuffer.(Int) -> MemoryBuffer>(MemoryBuffer::position).invokeVirtual(),
                 TypeInsnNode(Opcodes.CHECKCAST, memType.asmName)
             ).addInsns(
                 // We're going to do this as an LDC string in ISO-8859 and read it back at runtime. However,
@@ -61,7 +59,7 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
                             "getBytes", "(Ljava/lang/String;)[B", false),
                         0.const,
                         bytes.size.const,
-                        forceFnType<ByteBuffer.(ByteArray, Int, Int) -> ByteBuffer>(ByteBuffer::put).invokeVirtual()
+                        forceFnType<MemoryBuffer.(ByteArray, Int, Int) -> MemoryBuffer>(MemoryBuffer::put).invokeVirtual()
                     )
                 }.toList()
             ).addInsns(
@@ -69,7 +67,7 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
             )
 
     override fun currentMemory(ctx: FuncContext, func: Func) = func.popExpecting(memType).addInsns(
-        forceFnType<ByteBuffer.() -> Int>(ByteBuffer::limit).invokeVirtual(),
+        forceFnType<MemoryBuffer.() -> Int>(MemoryBuffer::limit).invokeVirtual(),
         Mem.PAGE_SIZE.const,
         InsnNode(Opcodes.IDIV)
     ).push(Int::class.ref)
@@ -86,10 +84,10 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
             val okLim = LabelNode()
             val node = MethodNode(
                 Opcodes.ACC_PRIVATE + Opcodes.ACC_STATIC + Opcodes.ACC_SYNTHETIC,
-                "\$\$growMemory", "(Ljava/nio/ByteBuffer;I)I", null, null
+                "\$\$growMemory", "(Lasmble/compile/jvm/MemoryBuffer;I)I", null, null
             ).addInsns(
                 VarInsnNode(Opcodes.ALOAD, 0), // [mem]
-                forceFnType<ByteBuffer.() -> Int>(ByteBuffer::limit).invokeVirtual(), // [lim]
+                forceFnType<MemoryBuffer.() -> Int>(MemoryBuffer::limit).invokeVirtual(), // [lim]
                 InsnNode(Opcodes.DUP), // [lim, lim]
                 VarInsnNode(Opcodes.ALOAD, 0), // [lim, lim, mem]
                 InsnNode(Opcodes.SWAP), // [lim, mem, lim]
@@ -102,7 +100,7 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
                 InsnNode(Opcodes.LADD), // [lim, mem, newlimL]
                 InsnNode(Opcodes.DUP2), // [lim, mem, newlimL, newlimL]
                 VarInsnNode(Opcodes.ALOAD, 0), // [lim, mem, newlimL, newlimL, mem]
-                ByteBuffer::capacity.invokeVirtual(), // [lim, mem, newlimL, newlimL, cap]
+                MemoryBuffer::capacity.invokeVirtual(), // [lim, mem, newlimL, newlimL, cap]
                 InsnNode(Opcodes.I2L), // [lim, mem, newlimL, newlimL, capL]
                 InsnNode(Opcodes.LCMP), // [lim, mem, newlimL, cmpres]
                 JumpInsnNode(Opcodes.IFLE, okLim), // [lim, mem, newlimL]
@@ -111,7 +109,7 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
                 InsnNode(Opcodes.IRETURN),
                 okLim, // [lim, mem, newlimL]
                 InsnNode(Opcodes.L2I), // [lim, mem, newlim]
-                forceFnType<ByteBuffer.(Int) -> Buffer>(ByteBuffer::limit).invokeVirtual(), // [lim, mem]
+                forceFnType<MemoryBuffer.(Int) -> MemoryBuffer>(MemoryBuffer::limit).invokeVirtual(), // [lim, mem]
                 InsnNode(Opcodes.POP), // [lim]
                 Mem.PAGE_SIZE.const, // [lim, pagesize]
                 InsnNode(Opcodes.IDIV), // [limpages]
@@ -125,7 +123,7 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
         // Ug, some tests expect this to be a runtime failure so we feature flagged it
         if (ctx.cls.eagerFailLargeMemOffset)
             require(insn.offset <= Int.MAX_VALUE, { "Offsets > ${Int.MAX_VALUE} unsupported" }).let { this }
-        fun Func.load(fn: ByteBuffer.(Int) -> Any, retClass: KClass<*>) =
+        fun Func.load(fn: MemoryBuffer.(Int) -> Any, retClass: KClass<*>) =
             this.popExpecting(Int::class.ref).let { func ->
                 // No offset means we'll access it directly
                 (if (insn.offset == 0L) func else {
@@ -141,9 +139,9 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
                     }
                 }).popExpecting(memType).addInsns((fn as KFunction<*>).invokeVirtual())
             }.push(retClass.ref)
-        fun Func.loadI32(fn: ByteBuffer.(Int) -> Any) =
+        fun Func.loadI32(fn: MemoryBuffer.(Int) -> Any) =
             this.load(fn, Int::class)
-        fun Func.loadI64(fn: ByteBuffer.(Int) -> Any) =
+        fun Func.loadI64(fn: MemoryBuffer.(Int) -> Any) =
             this.load(fn, Long::class)
         /* Ug: https://youtrack.jetbrains.com/issue/KT-17064
         fun Func.toUnsigned(fn: KFunction<*>) =
@@ -163,33 +161,33 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
         // Had to move this in here instead of as first expr because of https://youtrack.jetbrains.com/issue/KT-8689
         return when (insn) {
             is Node.Instr.I32Load ->
-                func.loadI32(ByteBuffer::getInt)
+                func.loadI32(MemoryBuffer::getInt)
             is Node.Instr.I64Load ->
-                func.loadI64(ByteBuffer::getLong)
+                func.loadI64(MemoryBuffer::getLong)
             is Node.Instr.F32Load ->
-                func.load(ByteBuffer::getFloat, Float::class)
+                func.load(MemoryBuffer::getFloat, Float::class)
             is Node.Instr.F64Load ->
-                func.load(ByteBuffer::getDouble, Double::class)
+                func.load(MemoryBuffer::getDouble, Double::class)
             is Node.Instr.I32Load8S ->
-                func.loadI32(ByteBuffer::get)
+                func.loadI32(MemoryBuffer::get)
             is Node.Instr.I32Load8U ->
-                func.loadI32(ByteBuffer::get).toUnsigned32(java.lang.Byte::class, "toUnsignedInt", Byte::class)
+                func.loadI32(MemoryBuffer::get).toUnsigned32(java.lang.Byte::class, "toUnsignedInt", Byte::class)
             is Node.Instr.I32Load16S ->
-                func.loadI32(ByteBuffer::getShort)
+                func.loadI32(MemoryBuffer::getShort)
             is Node.Instr.I32Load16U ->
-                func.loadI32(ByteBuffer::getShort).toUnsigned32(java.lang.Short::class, "toUnsignedInt", Short::class)
+                func.loadI32(MemoryBuffer::getShort).toUnsigned32(java.lang.Short::class, "toUnsignedInt", Short::class)
             is Node.Instr.I64Load8S ->
-                func.loadI32(ByteBuffer::get).i32ToI64()
+                func.loadI32(MemoryBuffer::get).i32ToI64()
             is Node.Instr.I64Load8U ->
-                func.loadI32(ByteBuffer::get).toUnsigned64(java.lang.Byte::class, "toUnsignedLong", Byte::class)
+                func.loadI32(MemoryBuffer::get).toUnsigned64(java.lang.Byte::class, "toUnsignedLong", Byte::class)
             is Node.Instr.I64Load16S ->
-                func.loadI32(ByteBuffer::getShort).i32ToI64()
+                func.loadI32(MemoryBuffer::getShort).i32ToI64()
             is Node.Instr.I64Load16U ->
-                func.loadI32(ByteBuffer::getShort).toUnsigned64(java.lang.Short::class, "toUnsignedLong", Short::class)
+                func.loadI32(MemoryBuffer::getShort).toUnsigned64(java.lang.Short::class, "toUnsignedLong", Short::class)
             is Node.Instr.I64Load32S ->
-                func.loadI32(ByteBuffer::getInt).i32ToI64()
+                func.loadI32(MemoryBuffer::getInt).i32ToI64()
             is Node.Instr.I64Load32U ->
-                func.loadI32(ByteBuffer::getInt).toUnsigned64(java.lang.Integer::class, "toUnsignedLong", Int::class)
+                func.loadI32(MemoryBuffer::getInt).toUnsigned64(java.lang.Integer::class, "toUnsignedLong", Int::class)
             else -> throw IllegalArgumentException("Unknown load op $insn")
         }
     }
@@ -224,12 +222,12 @@ open class ByteBufferMem(val direct: Boolean = true) : Mem {
                         popExpecting(Int::class.ref).
                         popExpecting(memType).
                         addInsns(fn).
-                        push(ByteBuffer::class.ref)
+                        push(MemoryBuffer::class.ref)
                 }
             // Ug, I hate these as strings but can't introspect Kotlin overloads
             fun bufStoreFunc(name: String, valType: KClass<*>) =
-                MethodInsnNode(Opcodes.INVOKEVIRTUAL, ByteBuffer::class.ref.asmName, name,
-                    ByteBuffer::class.ref.asMethodRetDesc(Int::class.ref, valType.ref), false)
+                MethodInsnNode(Opcodes.INVOKEVIRTUAL, MemoryBuffer::class.ref.asmName, name,
+                    MemoryBuffer::class.ref.asMethodRetDesc(Int::class.ref, valType.ref), false)
             fun Func.changeI64ToI32() =
                 this.popExpecting(Long::class.ref).push(Int::class.ref)
             when (insn) {
