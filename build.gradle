@@ -312,9 +312,7 @@ def publishSettings(project, projectName, projectDescription) {
             /*if(!hasProperty("bintrayUser") || !hasProperty("bintrayKey")) {
                 return
             }*/
-
-            user = "diemust"
-            key =  "d29cb47997b76560888f83add0aa1db5e58d57d4"
+            
             publications = ['MyPublication']
             //[Default: false] Whether to override version artifacts already published
             override = false
