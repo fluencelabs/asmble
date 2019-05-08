@@ -80,14 +80,11 @@ class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer {
 }
 
 interface MemoryBufferInitializator {
-    val memTypeRef: TypeRef
     fun init(capacity: Int): MemoryBuffer
 }
 
 class MemoryByteBufferInitializator(val direct: Boolean) : MemoryBufferInitializator {
-    override val memTypeRef: TypeRef = MemoryByteBuffer::class.ref
     override fun init(capacity: Int): MemoryBuffer {
-        println("init: " + memTypeRef)
         return if (direct) MemoryByteBuffer(ByteBuffer.allocateDirect(capacity))
         else MemoryByteBuffer(ByteBuffer.allocate(capacity))
     }

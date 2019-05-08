@@ -9,7 +9,7 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 
 open class ByteBufferMem(val initializator: MemoryBufferInitializator = MemoryByteBufferInitializator(true)) : Mem {
-    override val memType: TypeRef = initializator.memTypeRef
+    override val memType: TypeRef = MemoryBuffer::class.ref
 
     override fun limitAndCapacity(instance: Any): Pair<Int, Int> =
         if (instance !is MemoryBuffer) error("Unrecognized memory instance: $instance")
@@ -23,11 +23,11 @@ open class ByteBufferMem(val initializator: MemoryBufferInitializator = MemoryBy
         // Set the limit to initial
         (initial * Mem.PAGE_SIZE).const,
         forceFnType<MemoryBuffer.(Int) -> MemoryBuffer>(MemoryBuffer::limit).invokeVirtual(),
-        TypeInsnNode(Opcodes.CHECKCAST, MemoryBuffer::class.ref.asmName),
+        TypeInsnNode(Opcodes.CHECKCAST, memType.asmName),
         // Set it to use little endian
         ByteOrder::LITTLE_ENDIAN.getStatic(),
         forceFnType<MemoryBuffer.(ByteOrder) -> MemoryBuffer>(MemoryBuffer::order).invokeVirtual()
-    ).push(MemoryBuffer::class.ref)
+    ).push(memType)
 
     override fun data(func: Func, bytes: ByteArray, buildOffset: (Func) -> Func) =
         // Sadly there is no absolute bulk put, so we need to fake one. Ref:
@@ -222,12 +222,12 @@ open class ByteBufferMem(val initializator: MemoryBufferInitializator = MemoryBy
                         popExpecting(Int::class.ref).
                         popExpecting(memType).
                         addInsns(fn).
-                        push(MemoryBuffer::class.ref)
+                        push(memType)
                 }
             // Ug, I hate these as strings but can't introspect Kotlin overloads
             fun bufStoreFunc(name: String, valType: KClass<*>) =
-                MethodInsnNode(Opcodes.INVOKEVIRTUAL, MemoryBuffer::class.ref.asmName, name,
-                    MemoryBuffer::class.ref.asMethodRetDesc(Int::class.ref, valType.ref), false)
+                MethodInsnNode(Opcodes.INVOKEVIRTUAL, memType.asmName, name,
+                    memType.asMethodRetDesc(Int::class.ref, valType.ref), false)
             fun Func.changeI64ToI32() =
                 this.popExpecting(Long::class.ref).push(Int::class.ref)
             when (insn) {
