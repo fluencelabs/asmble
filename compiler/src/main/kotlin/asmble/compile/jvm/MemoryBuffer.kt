@@ -9,7 +9,7 @@ interface MemoryBuffer {
     fun limit(newLimit: Int): MemoryBuffer
     fun position(newPosition: Int): MemoryBuffer
     fun order(order: ByteOrder): MemoryBuffer
-    fun duplicate(order: ByteOrder): MemoryBuffer
+    fun duplicate(): MemoryBuffer
     fun put(arr: ByteArray, offset: Int, length: Int): MemoryBuffer
     fun getInt(index: Int): Int
     fun get(index: Int): Byte
@@ -44,7 +44,7 @@ class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer {
         return this
     }
 
-    override fun duplicate(order: ByteOrder): MemoryBuffer {
+    override fun duplicate(): MemoryBuffer {
         return MemoryByteBuffer(bb.duplicate())
     }
 
@@ -81,6 +81,10 @@ class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer {
 
 interface MemoryBufferInitializator {
     fun init(capacity: Int): MemoryBuffer
+}
+
+object MemoryBufferInit {
+    fun init(capacity: Int) = MemoryByteBuffer(ByteBuffer.allocateDirect(capacity))
 }
 
 class MemoryByteBufferInitializator(val direct: Boolean) : MemoryBufferInitializator {
