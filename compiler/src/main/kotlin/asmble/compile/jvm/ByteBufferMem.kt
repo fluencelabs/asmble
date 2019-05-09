@@ -8,7 +8,7 @@ import java.nio.ByteOrder
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 
-open class ByteBufferMem(val initializator: MemoryBufferInitializator = MemoryByteBufferInitializator(true)) : Mem {
+open class ByteBufferMem : Mem {
     override val memType: TypeRef = MemoryBuffer::class.ref
 
     override fun limitAndCapacity(instance: Any): Pair<Int, Int> =
@@ -16,7 +16,7 @@ open class ByteBufferMem(val initializator: MemoryBufferInitializator = MemoryBy
         else instance.limit() to instance.capacity()
 
     override fun create(func: Func) = func.popExpecting(Int::class.ref).addInsns(
-        (initializator::init).invokeStatic()
+        (MemoryInit::init).invokeStatic()
     ).push(memType)
 
     override fun init(func: Func, initial: Int) = func.popExpecting(memType).addInsns(

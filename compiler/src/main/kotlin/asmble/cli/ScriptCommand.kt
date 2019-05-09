@@ -1,7 +1,7 @@
 package asmble.cli
 
 import asmble.ast.Script
-import asmble.compile.jvm.javaIdent
+import asmble.compile.jvm.*
 import asmble.run.jvm.LoggerModule
 import asmble.run.jvm.Module
 import asmble.run.jvm.ScriptContext
@@ -86,10 +86,21 @@ abstract class ScriptCommand<T> : Command<T>() {
                 throw Exception("Failed loading $inFile - ${e.message}", e)
             }
         }
+
+        val mem = args.memory
+        val capacity = args.defaultMaxMemPages
+
         // Do registrations
         context = args.registrations.fold(context) { ctx, (moduleName, className) ->
-            ctx.withModuleRegistered(moduleName,
-                Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
+            if (mem != null) {
+                ctx.withModuleRegistered(moduleName,
+                        Module.Native(Class.forName(className, true, ctx.classLoader)
+                                .getConstructor(MemoryBuffer::class.java)
+                                .newInstance(mem(capacity * Mem.PAGE_SIZE))))
+            } else {
+                ctx.withModuleRegistered(moduleName,
+                        Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
+            }
         }
         if (args.specTestRegister) context = context.withHarnessRegistered()
 
@@ -120,6 +131,7 @@ abstract class ScriptCommand<T> : Command<T>() {
         val disableAutoRegister: Boolean,
         val specTestRegister: Boolean,
         val defaultMaxMemPages: Int,
-        val loggerMemPages: Int
+        val loggerMemPages: Int,
+        val memory: Function1<Int, MemoryBuffer>? = null
     )
 }

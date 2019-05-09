@@ -3,24 +3,63 @@ package asmble.compile.jvm
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-interface MemoryBuffer {
-    fun capacity(): Int
-    fun limit(): Int
-    fun limit(newLimit: Int): MemoryBuffer
-    fun position(newPosition: Int): MemoryBuffer
-    fun order(order: ByteOrder): MemoryBuffer
-    fun duplicate(): MemoryBuffer
-    fun put(arr: ByteArray, offset: Int, length: Int): MemoryBuffer
-    fun getInt(index: Int): Int
-    fun get(index: Int): Byte
-    fun getLong(index: Int): Long
-    fun getShort(index: Int): Short
-    fun getFloat(index: Int): Float
-    fun getDouble(index: Int): Double
+abstract class MemoryBuffer {
+    abstract fun capacity(): Int
+    abstract fun limit(): Int
+    abstract fun limit(newLimit: Int): MemoryBuffer
+    abstract fun position(newPosition: Int): MemoryBuffer
+    abstract fun order(order: ByteOrder): MemoryBuffer
+    abstract fun duplicate(): MemoryBuffer
+
+    abstract fun put(arr: ByteArray, offset: Int, length: Int): MemoryBuffer
+    abstract fun put(index: Int, b: Byte): MemoryBuffer
+    abstract fun putInt(index: Int, n: Int): MemoryBuffer
+    abstract fun putLong(index: Int, n: Long): MemoryBuffer
+    abstract fun putDouble(index: Int, n: Double): MemoryBuffer
+    abstract fun putShort(index: Int, n: Short): MemoryBuffer
+    abstract fun putFloat(index: Int, n: Float): MemoryBuffer
+    abstract fun get(index: Int): Byte
+    abstract fun getInt(index: Int): Int
+    abstract fun getLong(index: Int): Long
+    abstract fun getShort(index: Int): Short
+    abstract fun getFloat(index: Int): Float
+    abstract fun getDouble(index: Int): Double
 
 }
 
-class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer {
+class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer() {
+    override fun putLong(index: Int, n: Long): MemoryBuffer {
+        bb.putLong(index, n)
+        return this
+    }
+
+    override fun putDouble(index: Int, n: Double): MemoryBuffer {
+        bb.putDouble(index, n)
+        return this
+    }
+
+    override fun putShort(index: Int, n: Short): MemoryBuffer {
+        bb.putShort(index, n)
+        return this
+    }
+
+    override fun putFloat(index: Int, n: Float): MemoryBuffer {
+        bb.putFloat(index, n)
+        return this
+    }
+
+    override fun put(index: Int, b: Byte): MemoryBuffer {
+        bb.put(index, b)
+        return this
+    }
+
+    override fun putInt(index: Int, n: Int): MemoryBuffer {
+        bb.putInt(index, n)
+        return this
+    }
+
+    val getMemoryByteBuffer = this
+
     override fun capacity(): Int {
         return bb.capacity()
     }
@@ -75,22 +114,6 @@ class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer {
 
     override fun getDouble(index: Int): Double {
         return bb.getDouble(index)
-    }
-
-}
-
-interface MemoryBufferInitializator {
-    fun init(capacity: Int): MemoryBuffer
-}
-
-object MemoryBufferInit {
-    fun init(capacity: Int) = MemoryByteBuffer(ByteBuffer.allocateDirect(capacity))
-}
-
-class MemoryByteBufferInitializator(val direct: Boolean) : MemoryBufferInitializator {
-    override fun init(capacity: Int): MemoryBuffer {
-        return if (direct) MemoryByteBuffer(ByteBuffer.allocateDirect(capacity))
-        else MemoryByteBuffer(ByteBuffer.allocate(capacity))
     }
 
 }
