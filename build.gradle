@@ -14,14 +14,14 @@ buildscript {
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.5'
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.3'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
     }
 }
 
 allprojects {
     apply plugin: 'java'
     group 'com.github.cretz.asmble'
-    version '0.4.4-fl'
+    version '0.4.5-fl'
 
     // skips building and running for the specified examples
     ext.skipExamples = ['c-simple', 'go-simple', 'rust-regex']
