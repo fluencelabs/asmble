@@ -16,7 +16,7 @@ open class ByteBufferMem : Mem {
         else instance.limit() to instance.capacity()
 
     override fun create(func: Func) = func.popExpecting(Int::class.ref).addInsns(
-        (MemoryInit::init).invokeStatic()
+        (MemoryBuffer::init).invokeStatic()
     ).push(memType)
 
     override fun init(func: Func, initial: Int) = func.popExpecting(memType).addInsns(

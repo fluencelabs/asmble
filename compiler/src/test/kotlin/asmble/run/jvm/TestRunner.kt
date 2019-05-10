@@ -3,6 +3,8 @@ package asmble.run.jvm
 import asmble.BaseTestUnit
 import asmble.TestBase
 import asmble.annotation.WasmModule
+import asmble.compile.jvm.MemoryBufferBuilder
+import asmble.compile.jvm.MemoryByteBuffer
 import asmble.io.AstToBinary
 import asmble.io.AstToSExpr
 import asmble.io.ByteWriter
@@ -12,6 +14,7 @@ import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
+import java.nio.ByteBuffer
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
@@ -40,7 +43,10 @@ abstract class TestRunner<out T : BaseTestUnit>(val unit: T) : TestBase() {
             adjustContext = { it.copy(eagerFailLargeMemOffset = false) },
             defaultMaxMemPages = unit.defaultMaxMemPages,
             // Include the binary data so we can check it later
-            includeBinaryInCompiledClass = true
+            includeBinaryInCompiledClass = true,
+            memoryBuilder = MemoryBufferBuilder { it ->
+                MemoryByteBuffer(ByteBuffer.allocateDirect(it))
+            }
         ).withHarnessRegistered(PrintWriter(OutputStreamWriter(out, Charsets.UTF_8), true))
 
         // This will fail assertions as necessary

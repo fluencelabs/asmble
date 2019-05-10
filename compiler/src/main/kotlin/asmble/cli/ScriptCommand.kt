@@ -56,7 +56,8 @@ abstract class ScriptCommand<T> : Command<T>() {
     fun prepareContext(args: ScriptArgs): ScriptContext {
         var context = ScriptContext(
             packageName = "asmble.temp" + UUID.randomUUID().toString().replace("-", ""),
-            defaultMaxMemPages = args.defaultMaxMemPages
+            defaultMaxMemPages = args.defaultMaxMemPages,
+            memoryBuilder = args.memoryBuilder
         )
         // Compile everything
         context = args.inFiles.foldIndexed(context) { index, ctx, inFile ->
@@ -87,7 +88,7 @@ abstract class ScriptCommand<T> : Command<T>() {
             }
         }
 
-        val mem = args.memory
+        val mem = args.memoryBuilder
         val capacity = args.defaultMaxMemPages
 
         // Do registrations
@@ -96,7 +97,7 @@ abstract class ScriptCommand<T> : Command<T>() {
                 ctx.withModuleRegistered(moduleName,
                         Module.Native(Class.forName(className, true, ctx.classLoader)
                                 .getConstructor(MemoryBuffer::class.java)
-                                .newInstance(mem(capacity * Mem.PAGE_SIZE))))
+                                .newInstance(mem.build(capacity * Mem.PAGE_SIZE))))
             } else {
                 ctx.withModuleRegistered(moduleName,
                         Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
@@ -132,6 +133,6 @@ abstract class ScriptCommand<T> : Command<T>() {
         val specTestRegister: Boolean,
         val defaultMaxMemPages: Int,
         val loggerMemPages: Int,
-        val memory: Function1<Int, MemoryBuffer>? = null
+        val memoryBuilder: MemoryBufferBuilder? = null
     )
 }

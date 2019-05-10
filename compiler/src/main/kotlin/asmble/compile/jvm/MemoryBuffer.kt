@@ -3,31 +3,25 @@ package asmble.compile.jvm
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-abstract class MemoryBuffer {
-    abstract fun capacity(): Int
-    abstract fun limit(): Int
-    abstract fun limit(newLimit: Int): MemoryBuffer
-    abstract fun position(newPosition: Int): MemoryBuffer
-    abstract fun order(order: ByteOrder): MemoryBuffer
-    abstract fun duplicate(): MemoryBuffer
+/**
+ * The default implementation of MemoryBuffer that based on java.nio.DirectByteBuffer
+ */
+open class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer() {
+    override fun put(arr: ByteArray): MemoryBuffer {
+        bb.put(bb)
+        return this
+    }
 
-    abstract fun put(arr: ByteArray, offset: Int, length: Int): MemoryBuffer
-    abstract fun put(index: Int, b: Byte): MemoryBuffer
-    abstract fun putInt(index: Int, n: Int): MemoryBuffer
-    abstract fun putLong(index: Int, n: Long): MemoryBuffer
-    abstract fun putDouble(index: Int, n: Double): MemoryBuffer
-    abstract fun putShort(index: Int, n: Short): MemoryBuffer
-    abstract fun putFloat(index: Int, n: Float): MemoryBuffer
-    abstract fun get(index: Int): Byte
-    abstract fun getInt(index: Int): Int
-    abstract fun getLong(index: Int): Long
-    abstract fun getShort(index: Int): Short
-    abstract fun getFloat(index: Int): Float
-    abstract fun getDouble(index: Int): Double
+    override fun clear(): MemoryBuffer {
+        bb.clear()
+        return this
+    }
 
-}
+    override fun get(arr: ByteArray): MemoryBuffer {
+        bb.get(arr)
+        return this
+    }
 
-class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer() {
     override fun putLong(index: Int, n: Long): MemoryBuffer {
         bb.putLong(index, n)
         return this
@@ -57,8 +51,6 @@ class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer() {
         bb.putInt(index, n)
         return this
     }
-
-    val getMemoryByteBuffer = this
 
     override fun capacity(): Int {
         return bb.capacity()
