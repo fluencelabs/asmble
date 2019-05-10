@@ -8,7 +8,7 @@ import java.nio.ByteOrder
  */
 open class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer() {
     override fun put(arr: ByteArray): MemoryBuffer {
-        bb.put(bb)
+        bb.put(arr)
         return this
     }
 
