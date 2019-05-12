@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * The default implementation of MemoryBuffer that based on java.nio.DirectByteBuffer
+ * The default implementation of MemoryBuffer that based on java.nio.ByteBuffer
  */
 open class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer() {
     override fun put(arr: ByteArray): MemoryBuffer {
@@ -114,5 +114,9 @@ open class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer() {
         if (other !is MemoryByteBuffer)
             return false
         return bb == other.bb
+    }
+
+    override fun hashCode(): Int {
+        return bb.hashCode()
     }
 }

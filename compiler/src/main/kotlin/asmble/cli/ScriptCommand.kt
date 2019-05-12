@@ -89,7 +89,7 @@ abstract class ScriptCommand<T> : Command<T>() {
         }
 
         val mem = args.memoryBuilder
-        val capacity = args.defaultMaxMemPages
+        val capacity = args.defaultMaxMemPages * Mem.PAGE_SIZE
 
         // Do registrations
         context = args.registrations.fold(context) { ctx, (moduleName, className) ->
@@ -97,7 +97,7 @@ abstract class ScriptCommand<T> : Command<T>() {
                 ctx.withModuleRegistered(moduleName,
                         Module.Native(Class.forName(className, true, ctx.classLoader)
                                 .getConstructor(MemoryBuffer::class.java)
-                                .newInstance(mem.build(capacity * Mem.PAGE_SIZE))))
+                                .newInstance(mem.build(capacity))))
             } else {
                 ctx.withModuleRegistered(moduleName,
                         Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
@@ -125,6 +125,7 @@ abstract class ScriptCommand<T> : Command<T>() {
      * @param specTestRegister If true, registers the spec test harness as 'spectest'
      * @param defaultMaxMemPages The maximum number of memory pages when a module doesn't say
      * @param loggerMemPages The maximum number of memory pages of the logger module.
+     * @param memoryBuilder The builder to initialize new memory class.
      */
     data class ScriptArgs(
         val inFiles: List<String>,
