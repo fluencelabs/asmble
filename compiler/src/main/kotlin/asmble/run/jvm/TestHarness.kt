@@ -3,6 +3,8 @@ package asmble.run.jvm
 import asmble.annotation.WasmExport
 import asmble.annotation.WasmExternalKind
 import asmble.compile.jvm.Mem
+import asmble.compile.jvm.MemoryBuffer
+import asmble.compile.jvm.MemoryByteBuffer
 import java.io.PrintWriter
 import java.lang.invoke.MethodHandle
 import java.nio.ByteBuffer
@@ -17,10 +19,10 @@ open class TestHarness(val out: PrintWriter) {
     val global_f32 = 666.6f
     val global_f64 = 666.6
     val table = arrayOfNulls<MethodHandle>(10)
-    val memory = ByteBuffer.
+    val memory = MemoryByteBuffer(ByteBuffer.
         allocateDirect(2 * Mem.PAGE_SIZE).
         order(ByteOrder.LITTLE_ENDIAN).
-        limit(Mem.PAGE_SIZE) as ByteBuffer
+        limit(Mem.PAGE_SIZE) as ByteBuffer) as MemoryBuffer
 
     // Note, we have all of these overloads because my import method
     // resolver is simple right now and only finds exact methods via

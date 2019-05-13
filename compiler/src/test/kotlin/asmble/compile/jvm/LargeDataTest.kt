@@ -5,7 +5,6 @@ import asmble.ast.Node
 import asmble.run.jvm.ScriptContext
 import asmble.util.get
 import org.junit.Test
-import java.nio.ByteBuffer
 import java.util.*
 import kotlin.test.assertEquals
 
@@ -35,9 +34,9 @@ class LargeDataTest : TestBase() {
         val cls = ScriptContext.SimpleClassLoader(javaClass.classLoader, logger).fromBuiltContext(ctx)
         // Instantiate it, get the memory out, and check it
         val field = cls.getDeclaredField("memory").apply { isAccessible = true }
-        val buf = field[cls.newInstance()] as ByteBuffer
+        val buf = field[cls.newInstance()] as MemoryByteBuffer
         // Grab all + 1 and check values
-        val bytesActual = ByteArray(70001).also { buf.get(0, it) }
+        val bytesActual = ByteArray(70001).also { buf.bb.get(0, it) }
         bytesActual.forEachIndexed { index, byte ->
             assertEquals(if (index == 70000) 0.toByte() else bytesExpected[index], byte)
         }

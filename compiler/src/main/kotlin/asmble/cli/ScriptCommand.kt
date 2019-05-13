@@ -1,7 +1,7 @@
 package asmble.cli
 
 import asmble.ast.Script
-import asmble.compile.jvm.javaIdent
+import asmble.compile.jvm.*
 import asmble.run.jvm.LoggerModule
 import asmble.run.jvm.Module
 import asmble.run.jvm.ScriptContext
@@ -56,7 +56,8 @@ abstract class ScriptCommand<T> : Command<T>() {
     fun prepareContext(args: ScriptArgs): ScriptContext {
         var context = ScriptContext(
             packageName = "asmble.temp" + UUID.randomUUID().toString().replace("-", ""),
-            defaultMaxMemPages = args.defaultMaxMemPages
+            defaultMaxMemPages = args.defaultMaxMemPages,
+            memoryBuilder = args.memoryBuilder
         )
         // Compile everything
         context = args.inFiles.foldIndexed(context) { index, ctx, inFile ->
@@ -86,10 +87,23 @@ abstract class ScriptCommand<T> : Command<T>() {
                 throw Exception("Failed loading $inFile - ${e.message}", e)
             }
         }
+
+        val memBuilder = args.memoryBuilder
+
+        // throws ArithmeticException if the result overflows an int
+        val capacity = Math.multiplyExact(args.defaultMaxMemPages, Mem.PAGE_SIZE)
+
         // Do registrations
         context = args.registrations.fold(context) { ctx, (moduleName, className) ->
-            ctx.withModuleRegistered(moduleName,
-                Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
+            if (memBuilder != null) {
+                ctx.withModuleRegistered(moduleName,
+                        Module.Native(Class.forName(className, true, ctx.classLoader)
+                                .getConstructor(MemoryBuffer::class.java)
+                                .newInstance(memBuilder.build(capacity))))
+            } else {
+                ctx.withModuleRegistered(moduleName,
+                        Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
+            }
         }
         if (args.specTestRegister) context = context.withHarnessRegistered()
 
@@ -113,6 +127,7 @@ abstract class ScriptCommand<T> : Command<T>() {
      * @param specTestRegister If true, registers the spec test harness as 'spectest'
      * @param defaultMaxMemPages The maximum number of memory pages when a module doesn't say
      * @param loggerMemPages The maximum number of memory pages of the logger module.
+     * @param memoryBuilder The builder to initialize new memory class.
      */
     data class ScriptArgs(
         val inFiles: List<String>,
@@ -120,6 +135,7 @@ abstract class ScriptCommand<T> : Command<T>() {
         val disableAutoRegister: Boolean,
         val specTestRegister: Boolean,
         val defaultMaxMemPages: Int,
-        val loggerMemPages: Int
+        val loggerMemPages: Int,
+        val memoryBuilder: MemoryBufferBuilder? = null
     )
 }

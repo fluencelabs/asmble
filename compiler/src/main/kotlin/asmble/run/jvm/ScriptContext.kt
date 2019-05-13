@@ -43,7 +43,8 @@ data class ScriptContext(
         ScriptContext.SimpleClassLoader(ScriptContext::class.java.classLoader, logger),
     val exceptionTranslator: ExceptionTranslator = ExceptionTranslator,
     val defaultMaxMemPages: Int = 1,
-    val includeBinaryInCompiledClass: Boolean = false
+    val includeBinaryInCompiledClass: Boolean = false,
+    val memoryBuilder: MemoryBufferBuilder? = null
 ) : Logger by logger {
 
     fun withHarnessRegistered(out: PrintWriter = PrintWriter(System.out, true)) =

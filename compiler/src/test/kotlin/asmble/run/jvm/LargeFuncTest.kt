@@ -4,10 +4,10 @@ import asmble.TestBase
 import asmble.ast.Node
 import asmble.compile.jvm.AstToAsm
 import asmble.compile.jvm.ClsContext
+import asmble.compile.jvm.MemoryByteBuffer
 import org.junit.Assert
 import org.junit.Test
 import org.objectweb.asm.MethodTooLargeException
-import java.nio.ByteBuffer
 import java.util.*
 import kotlin.test.assertEquals
 
@@ -62,7 +62,7 @@ class LargeFuncTest : TestBase() {
         // Run someFunc
         cls.getMethod("someFunc").invoke(inst)
         // Get the memory out
-        val mem = cls.getMethod("getMemory").invoke(inst) as ByteBuffer
+        val mem = cls.getMethod("getMemory").invoke(inst) as MemoryByteBuffer
         // Read out the mem values
         (0 until numInsnChunks).forEach { assertEquals(it * (it - 1), mem.getInt(it * 4)) }
     }
