@@ -21,7 +21,7 @@ buildscript {
 allprojects {
     apply plugin: 'java'
     group 'com.github.cretz.asmble'
-    version '0.4.5-fl'
+    version '0.4.7-fl'
 
     // skips building and running for the specified examples
     ext.skipExamples = ['c-simple', 'go-simple', 'rust-regex']
