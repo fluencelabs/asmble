@@ -48,13 +48,6 @@ abstract class ScriptCommand<T> : Command<T>() {
                 desc = "Enables the special module the could be used for logging",
                 default = "false",
                 lowPriority = true
-        ).toBoolean(),
-         enableMetering = bld.arg(
-                name = "enableMetering",
-                opt = "enableLogger",
-                desc = "Enables the special module the could be used for gas metering",
-                default = "false",
-                lowPriority = true
         ).toBoolean()
     )
 
@@ -121,15 +114,13 @@ abstract class ScriptCommand<T> : Command<T>() {
                 )
         }
 
-        if (args.enableMetering) {
-            // add env Wasm module for gas metering
-            context =
-                context.withModuleRegistered(
-                    "env",
-                    // TODO: currently we are using almost infinite gas limit
-                    Module.Native(EnvModule(Long.MAX_VALUE))
-                )
-        }
+        // add env Wasm module for gas metering
+        context =
+            context.withModuleRegistered(
+                "env",
+                // TODO: currently we are using almost infinite gas limit
+                Module.Native(EnvModule(Long.MAX_VALUE))
+            )
 
         return context
     }
@@ -143,7 +134,6 @@ abstract class ScriptCommand<T> : Command<T>() {
      * @param specTestRegister If true, registers the spec test harness as 'spectest'
      * @param defaultMaxMemPages The maximum number of memory pages when a module doesn't say
      * @param enableLogger If set, the special logger module will be registred.
-     * @param enableMetering If set, the special runtime module for metering will be registred.
      * @param memoryBuilder The builder to initialize new memory class.
      */
     data class ScriptArgs(
@@ -153,7 +143,6 @@ abstract class ScriptCommand<T> : Command<T>() {
         val specTestRegister: Boolean,
         val defaultMaxMemPages: Int,
         val enableLogger: Boolean,
-        val enableMetering: Boolean,
         val memoryBuilder: MemoryBufferBuilder? = null
     )
 }
