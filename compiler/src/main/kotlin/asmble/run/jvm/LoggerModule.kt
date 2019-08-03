@@ -5,10 +5,11 @@ import java.io.PrintWriter
 import java.nio.ByteBuffer
 
 /**
- * Module used for logging UTF-8 strings from a Wasm module to the given writer.
+ * Module used for logging UTF-8 strings from a Wasm module to a given writer.
  */
 open class LoggerModule(val writer: PrintWriter) {
 
+    // one memory page is quite enough for save temporary buffer
     private val memoryPages = 1
 
     private val memory =

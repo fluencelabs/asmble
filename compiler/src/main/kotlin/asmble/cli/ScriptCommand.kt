@@ -127,7 +127,7 @@ abstract class ScriptCommand<T> : Command<T>() {
                 context.withModuleRegistered(
                     "env",
                     // TODO: currently we are using almost infinite gas limit
-                    Module.Native(MeteringModule(Long.MAX_VALUE))
+                    Module.Native(EnvModule(Long.MAX_VALUE))
                 )
         }
 
