@@ -5,19 +5,20 @@ import java.io.PrintWriter
 import java.nio.ByteBuffer
 
 /**
- * Module with possibility to write bytes to any 'writer'. This module actually
- * used for logging from the Wasm code outside to 'embedder' (host environment).
+ * Module used for logging UTF-8 strings from a Wasm module to a given writer.
  */
-open class LoggerModule(pagesOfMemory: Int, val writer: PrintWriter) {
+open class LoggerModule(val writer: PrintWriter) {
+
+    // one memory page is quite enough for save temporary buffer
+    private val memoryPages = 1
 
     private val memory =
-            ByteBuffer.allocate(pagesOfMemory * Mem.PAGE_SIZE) as ByteBuffer
+            ByteBuffer.allocate(memoryPages * Mem.PAGE_SIZE) as ByteBuffer
 
     /**
      * [Wasm function]
-     * Writes one byte to the logger memory buffer. If there is no place to write
-     * one byte into the buffer then flush all data from the buffer to [PrintWriter]
-     * and after that try to put the byte again.
+     * Writes one byte to the logger memory buffer. If there is no place flushes
+     * all data from the buffer to [PrintWriter] and try to put the byte again.
      */
     fun write(byte: Int) {
         val isFull = memory.position() >= memory.limit()

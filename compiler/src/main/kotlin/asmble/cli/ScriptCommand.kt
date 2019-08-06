@@ -2,9 +2,7 @@ package asmble.cli
 
 import asmble.ast.Script
 import asmble.compile.jvm.*
-import asmble.run.jvm.LoggerModule
-import asmble.run.jvm.Module
-import asmble.run.jvm.ScriptContext
+import asmble.run.jvm.*
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
@@ -44,13 +42,13 @@ abstract class ScriptCommand<T> : Command<T>() {
             default = "5",
             lowPriority = true
         ).toInt(),
-        loggerMemPages = bld.arg(
-                name = "loggerMemPages",
-                opt = "loggermempages",
-                desc = "The maximum number of memory pages of the logger module.",
-                default = "0",
+        enableLogger = bld.arg(
+                name = "enableLogger",
+                opt = "enableLogger",
+                desc = "Enables the special module the could be used for logging",
+                default = "false",
                 lowPriority = true
-        ).toInt()
+        ).toBoolean()
     )
 
     fun prepareContext(args: ScriptArgs): ScriptContext {
@@ -107,14 +105,23 @@ abstract class ScriptCommand<T> : Command<T>() {
         }
         if (args.specTestRegister) context = context.withHarnessRegistered()
 
-        if (args.loggerMemPages > 0) {
-            // creates additional Wasm module with logger functionality
+        if (args.enableLogger) {
+            // add logger Wasm module for logging
             context =
                 context.withModuleRegistered(
                     "logger",
-                    Module.Native(LoggerModule(args.loggerMemPages, PrintWriter(System.out)))
+                    Module.Native(LoggerModule(PrintWriter(System.out)))
                 )
         }
+
+        // add env Wasm module for gas metering
+        context =
+            context.withModuleRegistered(
+                "env",
+                // TODO: currently we are using almost infinite gas limit
+                Module.Native(EnvModule(Long.MAX_VALUE))
+            )
+
         return context
     }
 
@@ -126,7 +133,7 @@ abstract class ScriptCommand<T> : Command<T>() {
      * @param disableAutoRegister If set, this will not auto-register modules with names
      * @param specTestRegister If true, registers the spec test harness as 'spectest'
      * @param defaultMaxMemPages The maximum number of memory pages when a module doesn't say
-     * @param loggerMemPages The maximum number of memory pages of the logger module.
+     * @param enableLogger If set, the special logger module will be registred.
      * @param memoryBuilder The builder to initialize new memory class.
      */
     data class ScriptArgs(
@@ -135,7 +142,7 @@ abstract class ScriptCommand<T> : Command<T>() {
         val disableAutoRegister: Boolean,
         val specTestRegister: Boolean,
         val defaultMaxMemPages: Int,
-        val loggerMemPages: Int,
+        val enableLogger: Boolean,
         val memoryBuilder: MemoryBufferBuilder? = null
     )
 }

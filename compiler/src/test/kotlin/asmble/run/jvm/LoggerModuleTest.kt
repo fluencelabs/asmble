@@ -11,7 +11,7 @@ class LoggerModuleTest : TestBase() {
     @Test
     fun writeAndFlushTest() {
         val stream = StringWriter()
-        val logger = LoggerModule(1, PrintWriter(stream))
+        val logger = LoggerModule(PrintWriter(stream))
 
         logger.flush() // checks that no raise error
 
@@ -29,7 +29,7 @@ class LoggerModuleTest : TestBase() {
     fun writeAndFlushMoreThanLoggerBufferTest() {
         val stream = StringWriter()
         // logger buffer has 65Kb size
-        val logger = LoggerModule(1, PrintWriter(stream))
+        val logger = LoggerModule(PrintWriter(stream))
 
         val testString = longString(65_000 * 2) // twice as much as logger buffer
         for (byte: Byte in testString.toByteArray()) {
