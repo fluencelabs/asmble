@@ -13,7 +13,7 @@ open class EnvModule(val gasLimit: Long) {
      */
     fun gas(spentGas: Int) {
         if(overallSpentGas + spentGas > gasLimit) {
-            // TODO : check for overflow, add exception
+            // TODO : check for overflow, throw an exception
         }
 
         overallSpentGas += spentGas;
