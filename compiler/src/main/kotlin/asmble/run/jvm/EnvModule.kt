@@ -47,7 +47,7 @@ open class EnvModule(private val gasLimit: Long) {
     }
 
     /**
-     * Returns current EIC. Used from WasmVm to determine executed instruction after each invocation.
+     * Returns current EIC. Used from WasmVm to determine count of executed instruction after each invocation.
      */
     fun getEIC(): Long {
         return EIC;
