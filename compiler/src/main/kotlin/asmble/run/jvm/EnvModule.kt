@@ -31,7 +31,7 @@ open class EnvModule(private val gasLimit: Long) {
     }
 
     /**
-     * Sets spent gas and EIC value to 0 . Used from WasmVm to clear gas value before metering.
+     * Sets spent gas and EIC value to 0. Used from WasmVm to clear gas value before metering.
      * It should be impossible to call this function from a Wasm module.
      */
     fun clearState() {
@@ -47,7 +47,7 @@ open class EnvModule(private val gasLimit: Long) {
     }
 
     /**
-     * Returns current EIC. Used from WasmVm to determine spent gas after each invocation.
+     * Returns current EIC. Used from WasmVm to determine executed instruction after each invocation.
      */
     fun getEIC(): Long {
         return EIC;
