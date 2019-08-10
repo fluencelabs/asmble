@@ -86,23 +86,12 @@ abstract class ScriptCommand<T> : Command<T>() {
             }
         }
 
-        val memBuilder = args.memoryBuilder
-
-        // throws ArithmeticException if the result overflows an int
-        val capacity = Math.multiplyExact(args.defaultMaxMemPages, Mem.PAGE_SIZE)
-
         // Do registrations
         context = args.registrations.fold(context) { ctx, (moduleName, className) ->
-            if (memBuilder != null) {
-                ctx.withModuleRegistered(moduleName,
-                        Module.Native(Class.forName(className, true, ctx.classLoader)
-                                .getConstructor(MemoryBuffer::class.java)
-                                .newInstance(memBuilder.build(capacity))))
-            } else {
-                ctx.withModuleRegistered(moduleName,
-                        Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
-            }
+            ctx.withModuleRegistered(moduleName,
+                    Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
         }
+
         if (args.specTestRegister) context = context.withHarnessRegistered()
 
         if (args.enableLogger) {
