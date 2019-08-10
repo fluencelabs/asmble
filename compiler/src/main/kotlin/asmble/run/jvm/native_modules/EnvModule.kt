@@ -1,4 +1,4 @@
-package asmble.run.jvm
+package asmble.run.jvm.native_modules
 
 /**
  * Module used for gas and EIC metering.

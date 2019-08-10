@@ -77,6 +77,7 @@ interface Module {
             // If there is a memory import, we have to get the one with the mem class as the first
             val memImport = mod.imports.find { it.kind is Node.Import.Kind.Memory }
             val builder = ctx.memoryBuilder
+            val moduleMem = ctx.moduleMem
 
             val memLimit = if (memImport != null) {
                 constructor = cls.declaredConstructors.find { it.parameterTypes.firstOrNull()?.ref == mem.memType }
@@ -91,6 +92,11 @@ interface Module {
                         throw RunErr.ImportMemoryCapacityTooLarge(it * Mem.PAGE_SIZE, memCap)
                 }
                 memLimit
+            } else if (moduleMem != null) {
+                constructor = cls.declaredConstructors.find { it.parameterTypes.firstOrNull()?.ref == mem.memType }
+
+                constructorParams += moduleMem
+                ctx.defaultMaxMemPages * Mem.PAGE_SIZE
             } else if (builder != null) {
                 constructor = cls.declaredConstructors.find { it.parameterTypes.firstOrNull()?.ref == mem.memType }
 

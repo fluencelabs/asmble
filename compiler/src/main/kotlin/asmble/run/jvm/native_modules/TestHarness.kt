@@ -1,7 +1,5 @@
-package asmble.run.jvm
+package asmble.run.jvm.native_modules
 
-import asmble.annotation.WasmExport
-import asmble.annotation.WasmExternalKind
 import asmble.compile.jvm.Mem
 import asmble.compile.jvm.MemoryBuffer
 import asmble.compile.jvm.MemoryByteBuffer

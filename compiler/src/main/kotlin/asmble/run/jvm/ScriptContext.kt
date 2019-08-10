@@ -6,6 +6,7 @@ import asmble.ast.Script
 import asmble.compile.jvm.*
 import asmble.io.AstToSExpr
 import asmble.io.SExprToStr
+import asmble.run.jvm.native_modules.TestHarness
 import asmble.util.Logger
 import asmble.util.toRawIntBits
 import asmble.util.toRawLongBits
@@ -44,7 +45,8 @@ data class ScriptContext(
     val exceptionTranslator: ExceptionTranslator = ExceptionTranslator,
     val defaultMaxMemPages: Int = 1,
     val includeBinaryInCompiledClass: Boolean = false,
-    val memoryBuilder: MemoryBufferBuilder? = null
+    val memoryBuilder: MemoryBufferBuilder? = null,
+    var moduleMem: MemoryBuffer? = null
 ) : Logger by logger {
 
     fun withHarnessRegistered(out: PrintWriter = PrintWriter(System.out, true)) =

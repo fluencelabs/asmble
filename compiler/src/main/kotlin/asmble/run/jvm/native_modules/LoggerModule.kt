@@ -1,4 +1,4 @@
-package asmble.run.jvm
+package asmble.run.jvm.native_modules
 
 import asmble.compile.jvm.Mem
 import java.io.PrintWriter

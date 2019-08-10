@@ -1,6 +1,7 @@
 package asmble.run.jvm
 
 import asmble.TestBase
+import asmble.run.jvm.native_modules.LoggerModule
 import org.junit.Test
 import java.io.PrintWriter
 import java.io.StringWriter

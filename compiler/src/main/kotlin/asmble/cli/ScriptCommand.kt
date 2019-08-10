@@ -3,6 +3,9 @@ package asmble.cli
 import asmble.ast.Script
 import asmble.compile.jvm.*
 import asmble.run.jvm.*
+import asmble.run.jvm.native_modules.LoggerModule
+import asmble.run.jvm.native_modules.EnvModule
+import asmble.run.jvm.native_modules.wasi.WASIModule
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
@@ -86,35 +89,40 @@ abstract class ScriptCommand<T> : Command<T>() {
             }
         }
 
-        val memBuilder = args.memoryBuilder
+        // TODO: this hack should be refactored in future with rewritting the part of Asmble core code
+        // check that there is only one main module
+        if(context.modules.size == 1 && args.memoryBuilder != null) {
+            val capacity = Math.multiplyExact(args.defaultMaxMemPages, Mem.PAGE_SIZE)
+            val moduleMem = args.memoryBuilder.build(capacity)
+            context.moduleMem = moduleMem
+
+            // add the WASI Wasm module for support a subset of WASI syscalls
+            // WASI is enabled only for one module mode
+            context = context.withModuleRegistered(
+                  "wasi_unstable",
+                    Module.Native(WASIModule(moduleMem))
+               )
+        }
 
         // throws ArithmeticException if the result overflows an int
-        val capacity = Math.multiplyExact(args.defaultMaxMemPages, Mem.PAGE_SIZE)
 
         // Do registrations
         context = args.registrations.fold(context) { ctx, (moduleName, className) ->
-            if (memBuilder != null) {
-                ctx.withModuleRegistered(moduleName,
-                        Module.Native(Class.forName(className, true, ctx.classLoader)
-                                .getConstructor(MemoryBuffer::class.java)
-                                .newInstance(memBuilder.build(capacity))))
-            } else {
-                ctx.withModuleRegistered(moduleName,
-                        Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
-            }
+            ctx.withModuleRegistered(moduleName,
+                    Module.Native(Class.forName(className, true, ctx.classLoader).newInstance()))
         }
+
         if (args.specTestRegister) context = context.withHarnessRegistered()
 
         if (args.enableLogger) {
-            // add logger Wasm module for logging
-            context =
-                context.withModuleRegistered(
+            // add the logger Wasm module for logging
+            context = context.withModuleRegistered(
                     "logger",
                     Module.Native(LoggerModule(PrintWriter(System.out)))
                 )
         }
 
-        // add env Wasm module for gas metering
+        // add the env Wasm module for gas metering
         context =
             context.withModuleRegistered(
                 "env",
