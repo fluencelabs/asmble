@@ -104,8 +104,6 @@ abstract class ScriptCommand<T> : Command<T>() {
                )
         }
 
-        // throws ArithmeticException if the result overflows an int
-
         // Do registrations
         context = args.registrations.fold(context) { ctx, (moduleName, className) ->
             ctx.withModuleRegistered(moduleName,
