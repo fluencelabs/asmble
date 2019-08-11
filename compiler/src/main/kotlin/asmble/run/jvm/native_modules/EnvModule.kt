@@ -46,11 +46,17 @@ open class EnvModule(private val gasLimit: Long) {
     }
 
     /**
-     * Returns environment module state.
-     * Used from WasmVm to determine spent gas and executed instruction counter after each invocation.
+     * Returns spent gas.
      */
-    fun getState(): EnvState {
-        return state;
+    fun getSpentGas(): Long {
+        return state.spentGas;
+    }
+
+    /**
+     * Returns executed instruction counter.
+     */
+    fun getEIC(): Long {
+        return state.EIC;
     }
 
 }
