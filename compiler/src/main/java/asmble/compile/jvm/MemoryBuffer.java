@@ -36,5 +36,7 @@ public abstract class MemoryBuffer {
     public abstract short getShort(int index);
     public abstract float getFloat(int index);
     public abstract double getDouble(int index);
+    public abstract byte get();
+    public abstract void get(byte[] arr, int offset, int length);
     public abstract MemoryBuffer get(byte[] arr);
 }
