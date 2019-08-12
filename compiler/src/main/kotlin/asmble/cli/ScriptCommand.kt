@@ -89,9 +89,12 @@ abstract class ScriptCommand<T> : Command<T>() {
             }
         }
 
+        PrintWriter(System.out, true).println("asmble is running");
+
         // TODO: this hack should be refactored in future with rewritting the part of Asmble core code
         // check that there is only one main module
         if(context.modules.size == 1 && args.memoryBuilder != null) {
+            PrintWriter(System.out, true).println("WASI module loaded");
             val capacity = Math.multiplyExact(args.defaultMaxMemPages, Mem.PAGE_SIZE)
             val moduleMem = args.memoryBuilder.build(capacity)
             context.moduleMem = moduleMem

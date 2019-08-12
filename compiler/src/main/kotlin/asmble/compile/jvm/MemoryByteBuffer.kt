@@ -108,6 +108,14 @@ open class MemoryByteBuffer(val bb: ByteBuffer) : MemoryBuffer() {
         return bb.getDouble(index)
     }
 
+    override fun get(): Byte {
+        return bb.get();
+    }
+
+    override fun get(arr: ByteArray, offset: Int, length: Int) {
+        bb.get(arr, offset, length);
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other)
             return true

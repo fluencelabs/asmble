@@ -10,7 +10,7 @@ import java.io.PrintWriter
  * Module used for support WASI, contains the realization of several WASI imports
  * for operating with file system. Should be registered as 'wasi_unstable'.
  */
-open class WASIModule(private val mem: MemoryBuffer) {
+open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNames: Array<String>) {
 /*
  + (import "wasi_unstable" "fd_prestat_get" (func $__wasi_fd_prestat_get (type 2)))
  + (import "wasi_unstable" "fd_prestat_dir_name" (func $__wasi_fd_prestat_dir_name (type 1)))
@@ -35,6 +35,9 @@ open class WASIModule(private val mem: MemoryBuffer) {
     private val stdout: Int = 1
     private val stderr: Int = 2
 
+    private var nextPreopenedDirId = 0;
+    private val preopenedDirs = HashMap<Int, String>()
+
     // mapping between file descriptors and opened file
     private val openFiles = HashMap<Int, File>()
 
@@ -50,10 +53,23 @@ open class WASIModule(private val mem: MemoryBuffer) {
             fd: Int,
             buf_ptr: Int
     ): Int {
-        writer.println("fd_prestat_get: $fd, $buf_ptr");
+        writer.println("fd_prestat_get: $fd, $buf_ptr, returning __WASI_EBADF");
         writer.flush();
 
-        return wasiErrorCode;
+        if (nextPreopenedDirId >= preopenedDirNames.size) {
+            return __WASI_EBADF;
+        }
+
+        // dir type
+        mem.put(buf_ptr, 0);
+
+        // dir length
+        mem.putInt(buf_ptr + 1, preopenedDirNames[nextPreopenedDirId].length);
+        preopenedDirs[fd] = preopenedDirNames[nextPreopenedDirId];
+
+        ++nextPreopenedDirId;
+
+        return __WASI_ESUCCESS;
     }
 
     /**
@@ -62,7 +78,7 @@ open class WASIModule(private val mem: MemoryBuffer) {
      *
      * @param fd the preopened file descriptor to query
      * @param path where the metadata will be written
-     * @param path_len where the metadata will be written
+     * @param path_len the length of metadata
      * @return WASI code of result
      */
     fun fd_prestat_dir_name(
@@ -72,6 +88,18 @@ open class WASIModule(private val mem: MemoryBuffer) {
     ): Int {
         writer.println("fd_prestat_dir_name: $fd, $path, $path_len");
         writer.flush();
+
+        val memView = mem.duplicate();
+        memView.position(path);
+
+        if(preopenedDirs.containsKey(fd) ) {
+            writer.println("fd_prestat_dir_name: return string ${preopenedDirs[fd]}");
+            writer.flush();
+            memView.put(preopenedDirs[fd]!!.toByteArray(), 0, path_len);
+        } else {
+            // TODO: handle error
+            memView.put(path, 0);
+        }
 
         return wasiErrorCode;
     }
@@ -120,6 +148,7 @@ open class WASIModule(private val mem: MemoryBuffer) {
             fs_flags: __wasi_fdflags_t,
             fd: __wasi_fd_t
     ): Int {
+        //(type (;10;) (func (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
         writer.println("path_open: $dirfd, $dirflags, $path_offset, $path_len, $o_flags, $fs_rights_base, $fs_rightsinheriting, $fs_flags, $fd");
         writer.flush();
 
@@ -177,6 +206,15 @@ open class WASIModule(private val mem: MemoryBuffer) {
         writer.println("fd_write: $fd, $iovs, $iovs_len, $nwritten");
         writer.flush();
 
+        val data_ptr = mem.getInt(iovs);
+        val data_len = mem.getInt(iovs + 4);
+
+        val str = readUTF8String(mem, data_ptr, data_len);
+
+        writer.println("fd_write: $str");
+        writer.flush();
+
+        mem.putInt(nwritten, data_len);
         return __WASI_ESUCCESS;
     }
 

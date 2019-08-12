@@ -8,7 +8,7 @@ val __WASI_STDERR_FILENO: __wasi_fd_t = 2;
 typealias __wasi_lookupflags_t = Int;
 val __WASI_LOOKUP_SYMLINK_FOLLOW: __wasi_lookupflags_t = 1;
 
-typealias __wasi_oflags_t = Short;
+typealias __wasi_oflags_t = Int;//Short;
 val __WASI_O_CREAT: __wasi_oflags_t = 1;
 val __WASI_O_DIRECTORY: __wasi_oflags_t = 2;
 val __WASI_O_EXCL: __wasi_oflags_t = 4;
@@ -92,7 +92,7 @@ val __WASI_ETXTBSY = 74
 val __WASI_EXDEV = 75
 val __WASI_ENOTCAPABLE = 76
 
-typealias __wasi_filetype_t = Byte;
+typealias __wasi_filetype_t = Int;//Byte;
 val __WASI_FILETYPE_UNKNOWN: __wasi_filetype_t = 0;
 val __WASI_FILETYPE_BLOCK_DEVICE: __wasi_filetype_t = 1;
 val __WASI_FILETYPE_CHARACTER_DEVICE: __wasi_filetype_t = 2;
@@ -102,13 +102,13 @@ val __WASI_FILETYPE_SOCKET_DGRAM: __wasi_filetype_t = 5;
 val __WASI_FILETYPE_SOCKET_STREAM: __wasi_filetype_t = 6;
 val __WASI_FILETYPE_SYMBOLIC_LINK: __wasi_filetype_t = 7;
 
-typealias __wasi_fstflags_t = Short;
+typealias __wasi_fstflags_t = Int;//Short;
 val __WASI_FILESTAT_SET_ATIM: __wasi_fstflags_t = 1;
 val __WASI_FILESTAT_SET_ATIM_NOW: __wasi_fstflags_t = 2;
 val __WASI_FILESTAT_SET_MTIM: __wasi_fstflags_t = 4;
 val __WASI_FILESTAT_SET_MTIM_NOW: __wasi_fstflags_t = 8;
 
-typealias __wasi_fdflags_t = Short;
+typealias __wasi_fdflags_t = Int;//Short;
 val __WASI_FDFLAG_APPEND: __wasi_fdflags_t = 1;
 val __WASI_FDFLAG_DSYNC: __wasi_fdflags_t = 2;
 val __WASI_FDFLAG_NONBLOCK: __wasi_fdflags_t = 4;
