@@ -103,7 +103,7 @@ abstract class ScriptCommand<T> : Command<T>() {
             // WASI is enabled only for one module mode
             context = context.withModuleRegistered(
                   "wasi_unstable",
-                    Module.Native(WASIModule(moduleMem))
+                    Module.Native(WASIModule(moduleMem, arrayOf("/Users/")))
                )
         }
 

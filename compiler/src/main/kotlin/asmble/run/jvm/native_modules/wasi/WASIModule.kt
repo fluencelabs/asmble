@@ -5,6 +5,9 @@ import asmble.compile.jvm.MemoryBuffer
 import asmble.run.jvm.ScriptAssertionError
 import java.io.File
 import java.io.PrintWriter
+import java.lang.Integer.min
+import java.util.*
+import kotlin.collections.HashMap
 
 /**
  * Module used for support WASI, contains the realization of several WASI imports
@@ -39,7 +42,9 @@ open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNam
     private val preopenedDirs = HashMap<Int, String>()
 
     // mapping between file descriptors and opened file
-    private val openFiles = HashMap<Int, File>()
+    private val openedFiles = HashMap<Int, File>()
+    private val openedFilesOffset = HashMap<Int, Int>()
+    private val openedFileNames = HashMap<String, Int>()
 
     /**
      * [Wasm function]
@@ -53,7 +58,7 @@ open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNam
             fd: Int,
             buf_ptr: Int
     ): Int {
-        writer.println("fd_prestat_get: $fd, $buf_ptr, returning __WASI_EBADF");
+        writer.println("fd_prestat_get: $fd, $buf_ptr");
         writer.flush();
 
         if (nextPreopenedDirId >= preopenedDirNames.size) {
@@ -61,10 +66,14 @@ open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNam
         }
 
         // dir type
-        mem.put(buf_ptr, 0);
+        mem.putInt(buf_ptr, 0);
 
         // dir length
-        mem.putInt(buf_ptr + 1, preopenedDirNames[nextPreopenedDirId].length);
+
+        writer.println("fd_prestat_get: returning ${preopenedDirNames[nextPreopenedDirId].length} as the string length");
+        writer.flush();
+
+        mem.putInt(buf_ptr + 4, preopenedDirNames[nextPreopenedDirId].length);
         preopenedDirs[fd] = preopenedDirNames[nextPreopenedDirId];
 
         ++nextPreopenedDirId;
@@ -101,7 +110,7 @@ open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNam
             memView.put(path, 0);
         }
 
-        return wasiErrorCode;
+        return __WASI_ESUCCESS;
     }
 
     /**
@@ -118,6 +127,14 @@ open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNam
     ): Int {
         writer.println("fd_fdstat_get: $fd, $path");
         writer.flush();
+
+        if(preopenedDirs.containsKey(fd)) {
+            mem.put(path, __WASI_FILETYPE_DIRECTORY.toByte());
+            mem.putShort(path + 2, __WASI_FILETYPE_DIRECTORY.toShort());
+            // all rights
+            mem.putLong(path + 8, Long.MAX_VALUE);
+            mem.putLong(path + 16, Long.MAX_VALUE);
+        }
 
         return __WASI_ESUCCESS;
     }
@@ -148,19 +165,45 @@ open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNam
             fs_flags: __wasi_fdflags_t,
             fd: __wasi_fd_t
     ): Int {
-        //(type (;10;) (func (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
+        // path_open: 3, 1, 1114408, 43, 9, 264749053, 264749053, 0, 1048400
         writer.println("path_open: $dirfd, $dirflags, $path_offset, $path_len, $o_flags, $fs_rights_base, $fs_rightsinheriting, $fs_flags, $fd");
         writer.flush();
 
         if( (dirflags and __WASI_LOOKUP_SYMLINK_FOLLOW) != 0) {
             // TODO
-            return __WASI_EACCES;
+            writer.println("path_open: will follow debug links");
+            writer.flush();
         }
 
+        val pathToOpen = preopenedDirs[dirfd]!! + readUTF8String(mem, path_offset, path_len);
 
-        val path = readUTF8String(mem, path_offset, path_len);
-        writer.println("path_open: $path");
+        writer.println("path_open: $pathToOpen");
         writer.flush();
+
+        var newFd = 2 + nextPreopenedDirId + 10;
+        if(openedFileNames.containsKey(pathToOpen)) {
+           newFd = openedFileNames[pathToOpen]!!;
+        } else {
+            if(o_flags and __WASI_O_CREAT == 0) {
+                return __WASI_EINVAL;
+            }
+
+            if(o_flags and __WASI_O_DIRECTORY != 0) {
+                return __WASI_ENOTDIR;
+            }
+
+            val file = File(pathToOpen);
+            if(file.exists() && (o_flags and __WASI_O_EXCL != 0)) {
+                return __WASI_EINVAL;
+            }
+            file.createNewFile();
+
+            openedFileNames[pathToOpen] = newFd;
+            openedFilesOffset[newFd] = 0;
+            openedFiles[newFd] = File(pathToOpen);
+        }
+
+        mem.putInt(fd, newFd);
 
         return __WASI_ESUCCESS;
     }
@@ -184,6 +227,40 @@ open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNam
         writer.println("fd_read: $fd, $iovs, $iovs_len, $nread");
         writer.flush();
 
+        // check that is isn't standart i/o descriptor
+        if(fd <= 2) {
+            // return 0 bytes written if we try to read from the stdin
+            mem.putInt(nread, 0);
+            return __WASI_ESUCCESS;
+        }
+
+        val data_ptr = mem.getInt(iovs);
+        val data_len = mem.getInt(iovs + 4);
+        val readBytes = openedFiles[fd]!!.readBytes();
+
+        val offset = if(openedFilesOffset.containsKey(fd)) {
+            openedFilesOffset[fd]!!
+        } else {
+            0
+        }
+
+        val readBytesCount = min(data_len, readBytes.size - offset);
+        val tmpMem = ByteArray(readBytesCount);
+        writer.println("fd_read: $data_ptr $data_len $readBytesCount");
+        writer.flush();
+
+        System.arraycopy(readBytes, offset, tmpMem, 0, readBytesCount);
+
+        writer.println("fd_read: $data_ptr $data_len $readBytes $tmpMem");
+        writer.flush();
+
+        openedFilesOffset[fd] = offset + readBytesCount;
+
+        val memView = mem.duplicate();
+        memView.position(data_ptr);
+        memView.put(tmpMem, 0, readBytesCount);
+        mem.putInt(nread, readBytesCount);
+
         return __WASI_ESUCCESS;
     }
 
@@ -203,16 +280,18 @@ open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNam
             nwritten: Int
     ): Int {
 
-        writer.println("fd_write: $fd, $iovs, $iovs_len, $nwritten");
-        writer.flush();
-
         val data_ptr = mem.getInt(iovs);
         val data_len = mem.getInt(iovs + 4);
 
         val str = readUTF8String(mem, data_ptr, data_len);
 
-        writer.println("fd_write: $str");
+        writer.println("fd_write: $fd, $iovs, $iovs_len, $nwritten, $str");
         writer.flush();
+
+        // check that is isn't standart i/o descriptor
+        if(fd > 2) {
+            openedFiles[fd]!!.writeText(str);
+        }
 
         mem.putInt(nwritten, data_len);
         return __WASI_ESUCCESS;
@@ -229,6 +308,9 @@ open class WASIModule(private val mem: MemoryBuffer, private val preopenedDirNam
     ): Int {
         writer.println("fd_close: $fd");
         writer.flush();
+
+        openedFiles.remove(fd);
+        openedFilesOffset.remove(fd);
 
         return __WASI_ESUCCESS;
     }
