@@ -81,9 +81,10 @@ public class SplitMethod {
       localsMap.put(index, args.size() - 1);
     });
     // Create the new method
+    String name = orig.name.replace("<", "__").replace(">", "__") + "$split";
     MethodNode newMethod = new MethodNode(api,
-        Opcodes.ACC_STATIC + Opcodes.ACC_PRIVATE + Opcodes.ACC_SYNTHETIC, orig.name + "$split",
-        Type.getMethodDescriptor(Type.getType(Object[].class), args.toArray(new Type[0])), null, null);
+            Opcodes.ACC_STATIC + Opcodes.ACC_PRIVATE + Opcodes.ACC_SYNTHETIC, name,
+            Type.getMethodDescriptor(Type.getType(Object[].class), args.toArray(new Type[0])), null, null);
     // Add the written locals to the map that are not already there
     int newLocalIndex = args.size();
     for (Integer key : splitPoint.localsWritten.keySet()) {
@@ -102,9 +103,13 @@ public class SplitMethod {
     for (int i = 0; i < splitPoint.length; i++) {
       AbstractInsnNode insn = orig.instructions.get(i + splitPoint.start);
       // Skip frames
-      if (insn instanceof FrameNode) continue;
+      if (insn instanceof FrameNode) {
+        insn.accept(newMethod);
+        continue;
+      }
       // Store the label
-      if (insn instanceof LabelNode) seenLabels.add(((LabelNode) insn).getLabel());
+      if (insn instanceof LabelNode)
+        seenLabels.add(((LabelNode) insn).getLabel());
       // Change the local if needed
       if (insn instanceof VarInsnNode) {
         insn = insn.clone(Collections.emptyMap());
@@ -168,13 +173,13 @@ public class SplitMethod {
   }
 
   protected MethodNode createTrimmedMethod(String owner, MethodNode orig,
-      MethodNode splitOff, Splitter.SplitPoint splitPoint) {
+                                           MethodNode splitOff, Splitter.SplitPoint splitPoint) {
     // The trimmed method is the same as the original, yet the split area is replaced with a call to the split off
     // portion. Before calling the split-off, we have to add locals to the stack part. Then afterwards, we have to
     // replace the stack and written locals.
     // Effectively clone the orig
     MethodNode newMethod = new MethodNode(api, orig.access, orig.name, orig.desc,
-        orig.signature, orig.exceptions.toArray(new String[0]));
+            orig.signature, orig.exceptions.toArray(new String[0]));
     orig.accept(newMethod);
     // Remove all insns, we'll re-add the ones outside the split range
     newMethod.instructions.clear();
@@ -183,11 +188,18 @@ public class SplitMethod {
     Set<Label> seenLabels = new HashSet<>();
     // Also keep track of the locals that have been stored, need to know
     Set<Integer> seenStoredLocals = new HashSet<>();
+    int paramOffset = 0;
     // If this is an instance method, we consider "0" (i.e. "this") as seen
-    if ((orig.access & Opcodes.ACC_STATIC) == 0) seenStoredLocals.add(0);
+    if ((orig.access & Opcodes.ACC_STATIC) == 0) {
+      seenStoredLocals.add(0);
+      paramOffset = 1;
+    }
+    // We also consider parameters as seen
+    int paramCount = Type.getArgumentTypes(orig.desc).length;
+    for (int i = 0; i < paramCount; i++) seenStoredLocals.add(i + paramOffset);
     // Add the insns before split
     for (int i = 0; i < splitPoint.start; i++) {
-      AbstractInsnNode insn = orig.instructions.get(i + splitPoint.start);
+      AbstractInsnNode insn = orig.instructions.get(i);
       // Skip frames
       if (insn instanceof FrameNode) continue;
       // Record label
@@ -255,7 +267,7 @@ public class SplitMethod {
     }
     // Now we have restored all locals and all stack...add the rest of the insns after the split
     for (int i = splitPoint.start + splitPoint.length; i < orig.instructions.size(); i++) {
-      AbstractInsnNode insn = orig.instructions.get(i + splitPoint.start);
+      AbstractInsnNode insn = orig.instructions.get(i);
       // Skip frames
       if (insn instanceof FrameNode) continue;
       // Record label

@@ -67,7 +67,7 @@ public class Splitter implements Iterable<Splitter.SplitPoint> {
     public final int length;
 
     public SplitPoint(SortedMap<Integer, Type> localsRead, SortedMap<Integer, Type>localsWritten,
-        List<Type> neededFromStackAtStart, List<Type> putOnStackAtEnd, int start, int length) {
+                      List<Type> neededFromStackAtStart, List<Type> putOnStackAtEnd, int start, int length) {
       this.localsRead = localsRead;
       this.localsWritten = localsWritten;
       this.neededFromStackAtStart = neededFromStackAtStart;
@@ -123,11 +123,22 @@ public class Splitter implements Iterable<Splitter.SplitPoint> {
       return ret;
     }
 
+    private int shiftIndexValue = 1;
+
     protected SplitPoint nextOrNull() {
       // Try for each index
       while (++currIndex + minSize <= insns.length) {
+        if(shiftIndexValue > 0) {
+          currIndex += shiftIndexValue;
+        } else {
+          ++currIndex;
+        }
+
         SplitPoint longest = longestForCurrIndex();
-        if (longest != null) return longest;
+        if (longest != null) {
+          shiftIndexValue += longest.length;
+          return longest;
+        }
       }
       return null;
     }
@@ -139,6 +150,8 @@ public class Splitter implements Iterable<Splitter.SplitPoint> {
       InsnTraverseInfo info = new InsnTraverseInfo();
       info.startIndex = currIndex;
       info.endIndex = Math.min(currIndex + maxSize - 1, insns.length - 1);
+      // Reduce the end by special calls
+      constrainEndByInvokeSpecial(info);
       // Reduce the end based on try/catch blocks the start is in or that jump to
       constrainEndByTryCatchBlocks(info);
       // Reduce the end based on any jumps within
@@ -146,10 +159,21 @@ public class Splitter implements Iterable<Splitter.SplitPoint> {
       // Reduce the end based on any jumps into
       constrainEndByExternalJumps(info);
       // Make sure we didn't reduce the end too far
-      if (info.getSize() < minSize) return null;
+      //if (info.getSize() < minSize) return null;
       // Now that we have our largest range from the start index, we can go over each updating the local refs and stack
       // For the stack, we are going to use the
       return splitPointFromInfo(info);
+    }
+
+    protected void constrainEndByInvokeSpecial(InsnTraverseInfo info) {
+      // Can't have an invoke special of <init>
+      for (int i = info.startIndex; i <= info.endIndex; i++) {
+        AbstractInsnNode node = insns[i];
+        if (node.getOpcode() == Opcodes.INVOKESPECIAL && ((MethodInsnNode) node).name.equals("<init>")) {
+          info.endIndex = Math.max(info.startIndex, i - 1);
+          return;
+        }
+      }
     }
 
     protected void constrainEndByTryCatchBlocks(InsnTraverseInfo info) {
@@ -251,12 +275,53 @@ public class Splitter implements Iterable<Splitter.SplitPoint> {
       }
     }
 
+    // visits instructions with given adaptor
+    private void visitInstructions(int begin, int end, AnalyzerAdapter adapter) {
+      if(end - begin <= 0) {
+        return;
+      }
+
+      List<Object> stack = new ArrayList<>();
+      List<Object> locals = new ArrayList<>();
+      boolean gotoSeen = false;
+
+      for (int i = begin; i < end; ++i) {
+        if(insns[i].getOpcode() == Opcodes.GOTO || insns[i].getOpcode() == Opcodes.ATHROW ||
+                (insns[i].getOpcode() >= Opcodes.TABLESWITCH && insns[i].getOpcode() <= Opcodes.RETURN) ) {
+          stack = adapter.stack;
+          locals = adapter.locals;
+          gotoSeen = true;
+        } else if(gotoSeen) {
+          gotoSeen = false;
+          if(insns[i].getOpcode() >= Opcodes.IRETURN && insns[i].getOpcode() <= Opcodes.RETURN) {
+            stack.clear();
+            locals.clear();
+          }
+          adapter.visitFrame(Opcodes.F_NEW, locals.size(), locals.toArray(), stack.size(), stack.toArray());
+        }
+
+        insns[i].accept(adapter);
+      }
+
+      AbstractInsnNode lastInsn = insns[end - 1];
+
+      if(lastInsn.getOpcode() == Opcodes.GOTO || lastInsn.getOpcode() == Opcodes.ATHROW ||
+              (lastInsn.getOpcode() >= Opcodes.TABLESWITCH && lastInsn.getOpcode() <= Opcodes.RETURN) ) {
+
+        if(lastInsn.getOpcode() >= Opcodes.IRETURN && lastInsn.getOpcode() <= Opcodes.RETURN) {
+          stack.clear();
+          locals.clear();
+        }
+        adapter.visitFrame(Opcodes.F_NEW, locals.size(), locals.toArray(), stack.size(), stack.toArray());
+      }
+    }
+
     protected SplitPoint splitPointFromInfo(InsnTraverseInfo info) {
       // We're going to use the analyzer adapter and run it for the up until the end, a step at a time
       StackAndLocalTrackingAdapter adapter = new StackAndLocalTrackingAdapter(Splitter.this);
       // Visit all of the insns up our start.
       // XXX: I checked the source of AnalyzerAdapter to confirm I don't need any of the surrounding stuff
-      for (int i = 0; i < info.startIndex; i++) insns[i].accept(adapter);
+      visitInstructions(0, info.startIndex, adapter);
       // Take the stack at the start and copy it off
       List<Object> stackAtStart = new ArrayList<>(adapter.stack);
       // Reset some adapter state
@@ -264,27 +329,34 @@ public class Splitter implements Iterable<Splitter.SplitPoint> {
       adapter.localsRead.clear();
       adapter.localsWritten.clear();
       // Now go over the remaining range
-      for (int i = info.startIndex; i <= info.endIndex; i++) insns[i].accept(adapter);
+      visitInstructions(info.startIndex, info.endIndex + 1, adapter);
+
       // Build the split point
       return new SplitPoint(
-          localMapFromAdapterLocalMap(adapter.localsRead, adapter.uninitializedTypes),
-          localMapFromAdapterLocalMap(adapter.localsWritten, adapter.uninitializedTypes),
-          typesFromAdapterStackRange(stackAtStart, adapter.lowestStackSize, adapter.uninitializedTypes),
-          typesFromAdapterStackRange(adapter.stack, adapter.lowestStackSize, adapter.uninitializedTypes),
-          info.startIndex,
-          info.getSize()
+              localMapFromAdapterLocalMap(adapter.localsRead, adapter.uninitializedTypes),
+              localMapFromAdapterLocalMap(adapter.localsWritten, adapter.uninitializedTypes),
+              typesFromAdapterStackRange(stackAtStart, adapter.lowestStackSize, adapter.uninitializedTypes),
+              typesFromAdapterStackRange(adapter.stack, adapter.lowestStackSize, adapter.uninitializedTypes),
+              info.startIndex,
+              info.getSize()
       );
     }
 
     protected SortedMap<Integer, Type> localMapFromAdapterLocalMap(
-        SortedMap<Integer, Object> map, Map<Object, Object> uninitializedTypes) {
+            SortedMap<Integer, Object> map, Map<Object, Object> uninitializedTypes) {
       SortedMap<Integer, Type> ret = new TreeMap<>();
-      map.forEach((k, v) -> ret.put(k, typeFromAdapterStackItem(v, uninitializedTypes)));
+      map.forEach((k, v) ->
+              {
+                if(v != Opcodes.TOP ) {
+                  ret.put(k, typeFromAdapterStackItem(v, uninitializedTypes));
+                }
+              }
+      );
       return ret;
     }
 
     protected List<Type> typesFromAdapterStackRange(
-        List<Object> stack, int start, Map<Object, Object> uninitializedTypes) {
+            List<Object> stack, int start, Map<Object, Object> uninitializedTypes) {
       List<Type> ret = new ArrayList<>();
       for (int i = start; i < stack.size(); i++) {
         Object item = stack.get(i);

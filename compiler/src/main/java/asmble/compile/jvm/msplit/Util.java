@@ -19,7 +19,7 @@ class Util {
 
   static boolean isStoreOp(int opcode) {
     return opcode == Opcodes.ISTORE || opcode == Opcodes.LSTORE || opcode == Opcodes.FSTORE ||
-        opcode == Opcodes.DSTORE || opcode == Opcodes.ASTORE;
+            opcode == Opcodes.DSTORE || opcode == Opcodes.ASTORE;
   }
 
   static int storeOpFromType(Type type) {
@@ -55,13 +55,13 @@ class Util {
 
   static void unboxStackIfNecessary(Type type, MethodNode method) {
     if (type == Type.INT_TYPE) method.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-        "java/lang/Integer", "intValue", Type.getMethodDescriptor(Type.INT_TYPE), false);
+            "java/lang/Integer", "intValue", Type.getMethodDescriptor(Type.INT_TYPE), false);
     else if (type == Type.FLOAT_TYPE) method.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-        "java/lang/Float", "floatValue", Type.getMethodDescriptor(Type.FLOAT_TYPE), false);
+            "java/lang/Float", "floatValue", Type.getMethodDescriptor(Type.FLOAT_TYPE), false);
     else if (type == Type.LONG_TYPE) method.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-        "java/lang/Long", "longValue", Type.getMethodDescriptor(Type.LONG_TYPE), false);
+            "java/lang/Long", "longValue", Type.getMethodDescriptor(Type.LONG_TYPE), false);
     else if (type == Type.DOUBLE_TYPE) method.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
-        "java/lang/Double", "doubleValue", Type.getMethodDescriptor(Type.DOUBLE_TYPE), false);
+            "java/lang/Double", "doubleValue", Type.getMethodDescriptor(Type.DOUBLE_TYPE), false);
   }
 
   static AbstractInsnNode intConst(int v) {
@@ -79,6 +79,6 @@ class Util {
 
   static MethodInsnNode boxCall(Class<?> boxType, Type primType) {
     return new MethodInsnNode(Opcodes.INVOKESTATIC, Type.getInternalName(boxType),
-        "valueOf", Type.getMethodDescriptor(Type.getType(boxType), primType), false);
+            "valueOf", Type.getMethodDescriptor(Type.getType(boxType), primType), false);
   }
 }

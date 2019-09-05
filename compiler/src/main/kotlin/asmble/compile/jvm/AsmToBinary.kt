@@ -13,7 +13,7 @@ import org.objectweb.asm.tree.ClassNode
 open class AsmToBinary(val splitMethod: SplitMethod? = SplitMethod(Opcodes.ASM6)) {
     fun fromClassNode(
         cn: ClassNode,
-        newClassWriter: () -> ClassWriter = { ClassWriter(ClassWriter.COMPUTE_FRAMES + ClassWriter.COMPUTE_MAXS) }
+        newClassWriter: () -> ClassWriter = { ClassWriter(ClassWriter.COMPUTE_FRAMES) }
     ): ByteArray {
         while (true) {
             val cw = newClassWriter()
@@ -29,6 +29,7 @@ open class AsmToBinary(val splitMethod: SplitMethod? = SplitMethod(Opcodes.ASM6)
                 require(cn.name == e.className)
                 val tooLargeIndex = cn.methods.indexOfFirst { it.name == e.methodName && it.desc == e.descriptor }
                 require(tooLargeIndex >= 0)
+                val tt = cn.methods[tooLargeIndex]
                 val split = splitMethod.split(cn.name, cn.methods[tooLargeIndex])
                 split ?: throw IllegalStateException("Failed to split", e)
                 // Change the split off method's name if there's already one
